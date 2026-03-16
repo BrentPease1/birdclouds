@@ -34,3 +34,5 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 birdclouds.Rproj
+# big data
+data/L0/activity_measures
