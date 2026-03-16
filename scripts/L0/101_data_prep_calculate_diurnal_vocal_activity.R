@@ -331,15 +331,15 @@ for (c in continents) {
       species_holder <- rbindlist(species_holder)
       # make sure directory exists
       ifelse(!dir.exists(file.path(
-        here('data/L0/activity_measures')
+        here('data/L0/activity_measures/diurnal')
       )), dir.create(file.path(
-        here('data/L0/activity_measures')
+        here('data/L0/activity_measures/diurnal')
       )), FALSE)
       # write file to directory
       fwrite(
         species_holder,
         file = paste0(
-          here('data/L0/activity_measures'),
+          here('data/L0/activity_measures/diurnal'),
           "/activity_measures_",
           c,
           "_",
