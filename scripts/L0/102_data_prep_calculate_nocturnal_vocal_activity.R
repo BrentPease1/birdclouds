@@ -220,11 +220,44 @@ for (c in continents) {
     # join suncalc, its clean I promise :)
     unique_stations <- cbind(unique_stations, sun_times[, .(sunrise, sunset)])
     
-    
+    ################# OLD LOGIC FOR NIGHT START/END ###################
     # use suncalc data to calculate night start and end
-    unique_stations[, `:=`(night_start = sunset,
-                           night_end = shift(sunrise, n = 1, type = "lead"),
-                           night_id = seq_len(.N)), by = station_id]
+    #unique_stations[, `:=`(night_start = sunset,
+    #                       night_end = shift(sunrise, n = 1, type = "lead"),
+    #                       night_id = seq_len(.N)), by = station_id]
+    ########################################################################
+
+    ################## START OF NEW NIGHT START/END LOGIC ##################
+    # Arrange the stations and dates!!!
+    setorder(unique_stations, station_id, date)
+    
+    # Calculate night start and end - [more complicated version!]
+    unique_stations[,
+      `:=`(
+        night_start = sunset,
+        night_end = dplyr::if_else(
+          shift(date, type = "lead") == date + 1, # Check if NEXT row is exactly +1 day from current row
+          shift(sunrise, type = "lead"), # If it is, grab the sunrise
+          as.POSIXct(NA, tz = "UTC") # If not, there's a gap, so give it an NA; forced to data class as a safety
+        ),
+        # Force night_id to be the day of the month, instead of using row sequencing logic
+        night_id = lubridate::mday(date)
+      ),
+      by = station_id
+    ]
+    
+    # Thus, for a given date:
+    # night_id = the day of the date (e.g., Jan 1)
+    # night_start = sunset of current date (e.g., sunset on Jan 1)
+    # night_end = sunrise of following date (e.g., sunrise on Jan 2)
+    
+    # --- Optional: Clean up weird nights ---
+    # These nights could be filtered out now if you have time to check them
+    # Alternatively, leave these in for Karina to explore & remove in downstream analyses
+    # > Remove issue where sunset is after sunrise (probably caused by daylight savings time)
+    # > Remove gap issue where night_end is NA
+    unique_stations <- unique_stations[!is.na(night_end) & night_start < night_end]
+    ################## END OF NEW NIGHT START/END LOGIC ##################
     
     # keep just a few columns
     unique_stations <- unique_stations[, .(station_id, night_id, night_start, night_end)]
