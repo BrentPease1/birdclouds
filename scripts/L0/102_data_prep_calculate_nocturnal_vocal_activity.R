@@ -226,24 +226,24 @@ for (c in continents) {
     #                       night_end = shift(sunrise, n = 1, type = "lead"),
     #                       night_id = seq_len(.N)), by = station_id]
     ########################################################################
-
+    
     ################## START OF NEW NIGHT START/END LOGIC ##################
     # Arrange the stations and dates!!!
     setorder(unique_stations, station_id, date)
     
     # Calculate night start and end - [more complicated version!]
     unique_stations[,
-      `:=`(
-        night_start = sunset,
-        night_end = dplyr::if_else(
-          shift(date, type = "lead") == date + 1, # Check if NEXT row is exactly +1 day from current row
-          shift(sunrise, type = "lead"), # If it is, grab the sunrise
-          as.POSIXct(NA, tz = "UTC") # If not, there's a gap, so give it an NA; forced to data class as a safety
-        ),
-        # Force night_id to be the day of the month, instead of using row sequencing logic
-        night_id = lubridate::mday(date)
-      ),
-      by = station_id
+                    `:=`(
+                      night_start = sunset,
+                      night_end = dplyr::if_else(
+                        shift(date, type = "lead") == date + 1, # Check if NEXT row is exactly +1 day from current row
+                        shift(sunrise, type = "lead"), # If it is, grab the sunrise
+                        as.POSIXct(NA, tz = "UTC") # If not, there's a gap, so give it an NA; forced to data class as a safety
+                      ),
+                      # Force night_id to be the day of the month, instead of using row sequencing logic
+                      night_id = lubridate::mday(date)
+                    ),
+                    by = station_id
     ]
     
     # Thus, for a given date:
@@ -256,7 +256,15 @@ for (c in continents) {
     # Alternatively, leave these in for Karina to explore & remove in downstream analyses
     # > Remove issue where sunset is after sunrise (probably caused by daylight savings time)
     # > Remove gap issue where night_end is NA
-    unique_stations <- unique_stations[!is.na(night_end) & night_start < night_end]
+    # > Remove nights exceeding 24 hours - caused by UTC sunrise timestamps for UTC+ stations
+    #   bleeding into the previous calendar date, causing shift() to grab the wrong sunrise.
+    #   e.g. Thailand (UTC+7): Nov 2 sunrise at ~06:15 local = Nov 1 23:15 UTC, stored on Nov 1 row,
+    #   so shift() on Nov 2 row grabs Nov 3's sunrise instead, producing a ~36hr night.
+    unique_stations <- unique_stations[
+      !is.na(night_end) &
+        night_start < night_end &
+        as.numeric(difftime(night_end, night_start, units = "hours")) < 24
+    ]
     ################## END OF NEW NIGHT START/END LOGIC ##################
     
     # keep just a few columns
@@ -267,7 +275,7 @@ for (c in continents) {
     # species holders
     species_holder <- list()
     species_counter = 0
-   
+    
     # debugging helper
     # f = focal_spp[1]
     
