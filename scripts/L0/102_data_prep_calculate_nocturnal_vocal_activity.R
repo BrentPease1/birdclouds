@@ -11,14 +11,32 @@ setDTthreads(0)
 # functions
 remove_unwanted_spp <- function(dt) {
   not_interested <- c(
-    "Engine", "Siren", "Coyote", "Dog", "Eastern Gray Squirrel",
-    "Red Squirrel", "Power tools", "Fireworks", "Gray Wolf", "Gun",
-    "Honey Bee", "Spring Peeper"
+    "Engine",
+    "Siren",
+    "Coyote",
+    "Dog",
+    "Eastern Gray Squirrel",
+    "Red Squirrel",
+    "Power tools",
+    "Fireworks",
+    "Gray Wolf",
+    "Gun",
+    "Honey Bee",
+    "Spring Peeper"
   )
   
   like_patterns <- c(
-    "Treefrog", "Bullfrog", "Cricket", "Toad", "Trig", "Katydid",
-    "Chipmunk", "Conehead", "Gryllus assimilis", "Human", "Monkey"
+    "Treefrog",
+    "Bullfrog",
+    "Cricket",
+    "Toad",
+    "Trig",
+    "Katydid",
+    "Chipmunk",
+    "Conehead",
+    "Gryllus assimilis",
+    "Human",
+    "Monkey"
   )
   
   dt[
@@ -29,22 +47,24 @@ remove_unwanted_spp <- function(dt) {
 }
 
 
-
 fill_missing_night_end <- function(dt) {
   missing_idx <- which(is.na(dt$night_end))
   
-  if (length(missing_idx) == 0) return(dt)
+  if (length(missing_idx) == 0) {
+    return(dt)
+  }
   
   for (idx in missing_idx) {
-    next_day <- as.Date(dt$night_start[idx]) + 1
-    lat      <- dt$latitude[[idx]]
-    lon      <- dt$longitude[[idx]]
+    #next_day <- as.Date(dt$night_start[idx]) + 1 ######################################################
+    next_day <- as.Date(dt$date[idx]) + 1 # use date insetad of night_start ######################################################
+    lat <- dt$latitude[[idx]]
+    lon <- dt$longitude[[idx]]
     
     sunrise_times <- getSunlightTimes(
       date = next_day,
-      lat  = lat,
-      lon  = lon,
-      tz   = "UTC"
+      lat = lat,
+      lon = lon,
+      tz = "UTC"
     )
     
     dt$night_end[idx] <- sunrise_times$sunrise
@@ -54,18 +74,19 @@ fill_missing_night_end <- function(dt) {
 }
 
 
-
 # -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 # -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 confidence_cutoff <- c(0.75)
 detection_filter <- c(20)
-continents <- c("Africa",
-                "Asia",
-                "Europe",
-                "North America",
-                "Oceania",
-                "South America")
+continents <- c(
+  "Africa",
+  "Asia",
+  "Europe",
+  "North America",
+  "Oceania",
+  "South America"
+)
 
 # file base name
 base <- "E:/bird_acitivity/Results/bird_detections_by_continent_and_month"
@@ -94,15 +115,17 @@ months <- data.table(
 )
 
 # get year column
-months[, year := fcase(
-  str_detect(name, "^\\d{4}"), as.integer(str_sub(name, 1, 4)),
-  str_detect(name, "\\d{4}$"), as.integer(str_extract(name, "\\d{4}$")),
-  str_detect(name, "\\d{2}$"), as.integer(paste0("20", str_extract(name, "\\d{2}$")))
-)]
+months[,
+       year := fcase(
+         str_detect(name, "^\\d{4}") , as.integer(str_sub(name, 1, 4))                        ,
+         str_detect(name, "\\d{4}$") , as.integer(str_extract(name, "\\d{4}$"))               ,
+         str_detect(name, "\\d{2}$") , as.integer(paste0("20", str_extract(name, "\\d{2}$")))
+       )
+]
 
 # debugging helpers
 # c = 'Asia'
-# m = 1
+# m = 8
 
 # start loop to do continent-level calculations
 for (c in continents) {
@@ -131,16 +154,17 @@ for (c in continents) {
     # column clarity
     setnames(bw, old = c("id"), new = c('detection_id'))
     
-    # extract date and a few helper columns 
-    bw[, `:=`(datetime = lubridate::ymd_hms(timestamp,tz = "UTC"),
-              date = lubridate::as_date(timestamp),
-              continent = c,
-              year = months[m, year])]
+    # extract date and a few helper columns
+    bw[, `:=`(
+      datetime = lubridate::ymd_hms(timestamp, tz = "UTC"),
+      date = lubridate::as_date(timestamp),
+      continent = c,
+      year = months[m, year]
+    )]
     # throw out failures
-    bw <- bw[!is.na(datetime)] 
-    # a couple more helpers    
-    bw[, `:=`(week = week(datetime),
-              month = month(date))]
+    bw <- bw[!is.na(datetime)]
+    # a couple more helpers
+    bw[, `:=`(week = week(datetime), month = month(date))]
     
     # filter birdnet confidence score (variable defined in preamble)
     bw <- bw[confidence >= confidence_cutoff, ]
@@ -155,17 +179,23 @@ for (c in continents) {
     # copy to not mess up original
     tmp <- bw
     # make spatial object
-    tmp <- st_as_sf(tmp,
-                    coords = c("longitude", "latitude"),
-                    crs = 4326)
+    tmp <- st_as_sf(tmp, coords = c("longitude", "latitude"), crs = 4326)
     # which points fall within focal continent
     # returns an NA when outside, a 1 when inside
-    t <- sapply(st_intersects(tmp, continent_shapes |>
-                                dplyr::filter(continent == c)), function(z)
-                                  if (length(z) == 0)
-                                    NA_integer_
-                else
-                  z[1])
+    t <- sapply(
+      st_intersects(
+        tmp,
+        continent_shapes |>
+          dplyr::filter(continent == c)
+      ),
+      function(z) {
+        if (length(z) == 0) {
+          NA_integer_
+        } else {
+          z[1]
+        }
+      }
+    )
     # filters down the tmp to just 1s (within-continent_)
     tmp <- tmp[!is.na(t), ]
     # throw out vector
@@ -186,89 +216,123 @@ for (c in continents) {
     focal_spp <- total_spp[, unique(common_name)]
     focal_spp <- sort(focal_spp)
     
-    
-    
-    # ok, a bit more work to do 
+    # ok, a bit more work to do
     # consistent stations (at least a week during the month)
     these_stations <- bw[, uniqueN(date), station_id][V1 >= 7] # which stations have run for at least a week
     bw <- bw[station_id %in% these_stations$station_id]
     
     # figure out how long each station ran
-    bw[, `:=`(first_date = min(date), 
-              last_date = max(date)), by = station_id]
+    bw[, `:=`(first_date = min(date), last_date = max(date)), by = station_id]
     
     # get 1 row for each station
-    unique_stations <- bw[, .(latitude = latitude[1],
-                              longitude = longitude[1],
-                              first_date = first_date[1],
-                              last_date =last_date[1]),
-                          by = station_id]
+    unique_stations <- bw[,
+                          .(
+                            latitude = latitude[1],
+                            longitude = longitude[1],
+                            first_date = first_date[1],
+                            last_date = last_date[1]
+                          ),
+                          by = station_id
+    ]
     
     # expand for a row each day, should result in stations x number of days operated/station
-    unique_stations <- unique_stations[, .(date = seq(first_date, last_date, by = "1 day"),
-                                           lon = longitude,
-                                           lat = latitude), 
-                                       by = station_id]
+    #unique_stations <- unique_stations[, .(date = seq(first_date, last_date, by = "1 day"),######################################################
+    unique_stations <- unique_stations[,
+                                       .(
+                                         date = seq(first_date, last_date, by = "1 day"),
+                                         lon = longitude,
+                                         lat = latitude
+                                       ),
+                                       by = station_id
+    ]
     
     # grab sunset and sunrise time
+    # NOTE: Force TZ=UTC to avoid suncalc DST bug on system-local DST days
+    old_tz_main <- Sys.getenv("TZ")
+    Sys.setenv(TZ = "UTC")
+    
     sun_times <- suncalc::getSunlightTimes(
-      data = unique_stations[, .(date, lat, lon)], 
-      keep = c("sunset", "sunrise"), 
-      tz = "UTC")
+      data = unique_stations[, .(date, lat, lon)],
+      keep = c("sunset", "sunrise"),
+      tz = "UTC"
+    )
+    
+    if (old_tz_main == "") Sys.unsetenv("TZ") else Sys.setenv(TZ = old_tz_main)
+    
     sun_times <- setDT(sun_times)
     
     # join suncalc, its clean I promise :)
     unique_stations <- cbind(unique_stations, sun_times[, .(sunrise, sunset)])
     
-    ################# OLD LOGIC FOR NIGHT START/END ###################
-    # use suncalc data to calculate night start and end
-    #unique_stations[, `:=`(night_start = sunset,
-    #                       night_end = shift(sunrise, n = 1, type = "lead"),
-    #                       night_id = seq_len(.N)), by = station_id]
-    ########################################################################
-    
-    ################## START OF NEW NIGHT START/END LOGIC ##################
-    # Arrange the stations and dates!!!
+    ################## START OF FIXED NIGHT START/END LOGIC (v3) ##################
     setorder(unique_stations, station_id, date)
     
-    # Calculate night start and end - [more complicated version!]
-    unique_stations[,
-                    `:=`(
-                      night_start = sunset,
-                      night_end = dplyr::if_else(
-                        shift(date, type = "lead") == date + 1, # Check if NEXT row is exactly +1 day from current row
-                        shift(sunrise, type = "lead"), # If it is, grab the sunrise
-                        as.POSIXct(NA, tz = "UTC") # If not, there's a gap, so give it an NA; forced to data class as a safety
-                      ),
-                      # Force night_id to be the day of the month, instead of using row sequencing logic
-                      night_id = lubridate::mday(date)
-                    ),
-                    by = station_id
+    # night_start is always the sunset on the current date
+    unique_stations[, night_start := sunset]
+    
+    # --- THE ROOT CAUSE ---
+    # getSunlightTimes(tz = "UTC") is supposed to return UTC timestamps, but
+    # internally suncalc routes through the system's local timezone. On US DST
+    # transition days (e.g. Nov 3 2024), this causes a 1-day offset for UTC+
+    # stations: asking for date=Nov 3 returns the Nov 4 local sunrise instead
+    # of the Nov 3 local sunrise, because the internal time arithmetic is
+    # thrown off by the system clock's DST jump.
+    #
+    # FIX: Temporarily set the system timezone to UTC before calling
+    # getSunlightTimes, then restore it. This eliminates the DST artifact.
+    
+    # Save current TZ and force UTC
+    old_tz <- Sys.getenv("TZ")
+    Sys.setenv(TZ = "UTC")
+    
+    next_day_input <- unique_stations[, .(date = date + 1L, lat, lon)]
+    
+    next_sunrise <- suncalc::getSunlightTimes(
+      data = next_day_input,
+      keep = "sunrise",
+      tz   = "UTC"
+    )
+    setDT(next_sunrise)
+    
+    unique_stations[, night_end := next_sunrise$sunrise]
+    
+    # Restore original TZ
+    if (old_tz == "") {
+      Sys.unsetenv("TZ")
+    } else {
+      Sys.setenv(TZ = old_tz)
+    }
+    
+    # Force night_id to be the day of the month
+    unique_stations[, night_id := lubridate::mday(date)]
+    
+    # --- DIAGNOSTIC: log any bad nights to file for review ---
+    bad_nights <- unique_stations[
+      !is.na(night_end) &
+        (night_start >= night_end |
+           as.numeric(difftime(night_end, night_start, units = "hours")) > 24),
     ]
+    if (nrow(bad_nights) > 0) {
+      bad_nights[, `:=`(continent = c, month = this_month)]
+      bad_log <- here("data/L0/activity_measures/", "bad_nights_log.csv")
+      fwrite(bad_nights, file = bad_log, append = TRUE)
+      cat("*** WARNING:", nrow(bad_nights), "bad nights logged for", c, this_month, "***\n")
+    }
     
-    # Thus, for a given date:
-    # night_id = the day of the date (e.g., Jan 1)
-    # night_start = sunset of current date (e.g., sunset on Jan 1)
-    # night_end = sunrise of following date (e.g., sunrise on Jan 2)
-    
-    # --- Optional: Clean up weird nights ---
-    # These nights could be filtered out now if you have time to check them
-    # Alternatively, leave these in for Karina to explore & remove in downstream analyses
-    # > Remove issue where sunset is after sunrise (probably caused by daylight savings time)
-    # > Remove gap issue where night_end is NA
-    # > Remove nights exceeding 24 hours - caused by UTC sunrise timestamps for UTC+ stations
-    #   bleeding into the previous calendar date, causing shift() to grab the wrong sunrise.
-    #   e.g. Thailand (UTC+7): Nov 2 sunrise at ~06:15 local = Nov 1 23:15 UTC, stored on Nov 1 row,
-    #   so shift() on Nov 2 row grabs Nov 3's sunrise instead, producing a ~36hr night.
+    # throws out NAs and places where there is no sunrise 
     unique_stations <- unique_stations[
       !is.na(night_end) &
-        night_start < night_end &
-        as.numeric(difftime(night_end, night_start, units = "hours")) < 24
+        night_start < night_end
     ]
-    ################## END OF NEW NIGHT START/END LOGIC ##################
+    ################## END OF FIXED NIGHT START/END LOGIC (v3) ##################
     
     # keep just a few columns
-    unique_stations <- unique_stations[, .(station_id, night_id, night_start, night_end)]
+    unique_stations <- unique_stations[, .(
+      station_id,
+      night_id,
+      night_start,
+      night_end
+    )]
     #stashing a copy for below to merge in night_start and _end for karina
     keep_nights <- unique_stations
     
@@ -284,16 +348,25 @@ for (c in continents) {
       single_spp_dets <- bw[common_name == f, ]
       
       # doing a bunch of neil stuff
-      setnames(single_spp_dets, old = c('latitude', 'longitude'),new = c('lat', 'lon'))
+      setnames(
+        single_spp_dets,
+        old = c('latitude', 'longitude'),
+        new = c('lat', 'lon')
+      )
       
       # join night start and end with bw data
-      single_spp_dets <- single_spp_dets[unique_stations, on = .(station_id), 
-                                         allow.cartesian = TRUE]
+      single_spp_dets <- single_spp_dets[
+        unique_stations,
+        on = .(station_id),
+        allow.cartesian = TRUE
+      ]
       
       # filter to night time
-      single_spp_dets <- single_spp_dets[datetime >= night_start & datetime < night_end]
+      single_spp_dets <- single_spp_dets[
+        datetime >= night_start & datetime < night_end
+      ]
       
-      # unique species x station combos - don't want to blow things up with 
+      # unique species x station combos - don't want to blow things up with
       # all possible combos
       sp_stat <- unique(
         single_spp_dets[, .(common_name, station_id)]
@@ -306,39 +379,61 @@ for (c in continents) {
       night_station <- unique_stations[, .(station_id, night_id)]
       
       # template
-      template <- night_station[sp_stat, on = .(station_id), allow.cartesian = T]
+      template <- night_station[
+        sp_stat,
+        on = .(station_id),
+        allow.cartesian = T
+      ]
       
       # detections
-      dh <- single_spp_dets[, .(det = 1),by = .(common_name, station_id, night_id)]
+      dh <- single_spp_dets[,
+                            .(det = 1),
+                            by = .(common_name, station_id, night_id)
+      ]
       
       # output
       det_hist <- merge(
-        template, 
+        template,
         dh,
         by = c("common_name", "station_id", "night_id"),
-        all.x = TRUE)
+        all.x = TRUE
+      )
       
       det_hist[is.na(det), det := 0]
       
       setkey(det_hist, station_id)
       
       # one more grab to export with everything
-      out <- keep_nights[det_hist, on = .(station_id, night_id), allow.cartesian = F]
+      out <- keep_nights[
+        det_hist,
+        on = .(station_id, night_id),
+        allow.cartesian = F
+      ]
       # pull in lat/lon
-      out <- out[bw[station_id %in% out$station_id,.(latitude = latitude[1], longitude=longitude[1]), station_id], on = .(station_id)]
+      out <- out[
+        bw[
+          station_id %in% out$station_id,
+          .(latitude = latitude[1], longitude = longitude[1]),
+          station_id
+        ],
+        on = .(station_id)
+      ]
       out <- fill_missing_night_end(out)
       
       # drop station_date grouping variable
       species_holder[[species_counter]] <- out
-      
     } #species
     species_holder <- rbindlist(species_holder)
     # make sure directory exists
-    ifelse(!dir.exists(file.path(
-      here('data/L0/activity_measures/nocturnal')
-    )), dir.create(file.path(
-      here('data/L0/activity_measures/nocturnal')
-    )), FALSE)
+    ifelse(
+      !dir.exists(file.path(
+        here('data/L0/activity_measures/nocturnal')
+      )),
+      dir.create(file.path(
+        here('data/L0/activity_measures/nocturnal')
+      )),
+      FALSE
+    )
     # write file to directory
     fwrite(
       species_holder,
@@ -348,14 +443,13 @@ for (c in continents) {
         c,
         "_",
         this_month,
-        "_conf_" ,
+        "_conf_",
         confidence_cutoff,
         "_det_",
         detection_filter,
         ".csv"
       )
     )
-    
     
     cat(
       '\n\n',
@@ -370,8 +464,5 @@ for (c in continents) {
       as.character(Sys.time()),
       "\n\n"
     )
-    
-    
   } # months
-  
 } #continents
