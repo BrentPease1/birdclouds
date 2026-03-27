@@ -6,6 +6,17 @@ for modelling and analyses, including [**final_diurnal.RData**](#final_diurnalrd
 [**final_nocturnal.RData**](#final_nocturnalrdata). Note that the exact same datasets are also
 provided with different extensions: `.csv` or `.rds`
 
+**Table of Contents**
+- [final\_data\_metadata.md](#final_data_metadatamd)
+  - [Covariate Info](#covariate-info)
+    - [VIIRS Data](#viirs-data)
+    - [Weather Data](#weather-data)
+    - [Moonlight Data](#moonlight-data)
+    - [Elevation Data](#elevation-data)
+  - [Datasets](#datasets)
+    - [**final\_diurnal.RData**](#final_diurnalrdata)
+    - [**final\_nocturnal.RData**](#final_nocturnalrdata)
+
 ## Covariate Info
 
 ### VIIRS Data
