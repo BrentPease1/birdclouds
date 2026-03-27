@@ -2,19 +2,13 @@
 # final_data_metadata.md
 
 This file describes the data contained in the final data files prepared
-for modelling and analyses, including [**final_diurnal.RData**]() and
-[**final_nocturnal.RData**](). Note that the exact same datasets are also
+for modelling and analyses, including [**final_diurnal.RData**](#final_diurnalrdata) and
+[**final_nocturnal.RData**](#final_nocturnalrdata). Note that the exact same datasets are also
 provided with different extensions: `.csv` or `.rds`
 
+## Covariate Info
 
-To Do
-* [ ] Write metadata for nocturnal dataset
-* [x] Write metadata for weather data
-* [x] Write metadata for VIIRS
-
-
-
-## VIIRS information
+### VIIRS Data
 
 VIIRS =  Visible and Infrared Imaging Suite
 
@@ -41,7 +35,7 @@ middle, and "high" refers to `avg_rad` values in the upper third of the
 distribution (highest radiance = brightest skies).
 
 ```r
-# pulled from the VIIRS script
+# --- pulled from the VIIRS script
 # categorize nighttime light
 out[, rad_cat := fcase(
   avg_rad < quantile(avg_rad, probs = 0.334, na.rm = T), "low",
@@ -51,7 +45,7 @@ out[, rad_cat := fcase(
 ```
 
 
-## Weather information
+### Weather Data
 
 Weather was extracted from the [open-meteo API](https://open-meteo.com/)
 
@@ -91,11 +85,90 @@ Weather variable name | description* | unit | resolution
 [open-meteo API docs](https://open-meteo.com/en/docs/historical-weather-api)
 for your convenience.
 
-## **final_diurnal.RData**
+### Moonlight Data
 
-[**final_diurnal.RData**]() is the final dataset used for diurnal modelling
-analyses. The dataset contains 30 columns. The names, descriptions, and data
-classes of each column are described below:
+Moonlight intensity data was calculated using the MoonShineR package
+([paper](https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.14299);
+[GitHub repo](https://github.com/Crampton-Lab/MoonShine);
+[package info](https://lokpoon.github.io/MoonShine_manual/lux_calculator.html))
+
+The moonlight data was calculated using the `MoonShineR::predict_lux()` function.
+We calculated hourly data for each BirdWeather station, given its lat/lon coords 
+and site elevation ([see elevation for more info](#elevation-data)). Specifically,
+**for the moonlight data value, we calculated `moon_final_lux_nighttime`.**
+
+According to MoonShineR, `moon_final_lux_nighttime` is:
+
+> Only the illuminance of moonlight at night (no value during daytime, when
+`sun_altitude` > 0 degrees)
+
+Essentially, this value does not include the illuminance of sunlight. It removes
+the hours where the sun's position relative to the elevation of the station
+still had an effect on illumination. Thus, it only keeps the hours where the
+moon is 'active'.
+
+The moonlight data was summarized for each `station_id` and `night_id`
+using `night_start` and `night_end`. 
+
+We delineated nights with:
+
+* `night_id` = the day of the month (e.g., a date of 2026-05-08 will have
+`night_id` of 8)
+* `night_start` = the UTC sunset of the day of `night_id`
+* `night_end` = the UTC sunrise following the sunset of `night_start`
+
+We summarized moonlight data using the following summary statistics:
+
+* mean moonlight between `night_start` and `night_end`
+* median moonlight between `night_start` and `night_end`
+* max moonlight between `night_start` and `night_end`
+* min moonlight between `night_start` and `night_end`
+* Moonlight at approximately "solar midnight"
+  * The hourly data for moonlight (using MoonShineR's
+  `moon_final_lux_nighttime`) may not have a value for every hour between
+  `night_start` and `night_end` because MoonShineR did not yet consider that
+  hour as "nighttime" (see description of `moon_final_lux_nighttime` above).
+  * Thus, "solar midnight" refers to the closest maximum value to the midpoint
+  (in hours) between `night_start` and `night_end`
+  * For example:
+    * `night_start` occurs on Friday at 8 pm (e.g., UTC 2025-05-18 20:00:00)
+    * `night_end` occurs on Saturday at 6 am (e.g., UTC 2025-05-19 05:00:00)
+    * The midpoint of the night occurs on Saturday at 12:30 am
+    (e.g., UTC 2025-05-19 00:30:00)
+    * The closest value in the raw hourly data will be at either 12am or 1am.
+    * Thus, we take the value that is higher (i.e., the max). 
+    * This avoids issues where the midpoint occurs very closely to what
+    MoonShineR considers the "start" of "nighttime", such that if one is
+    missing, then we just take the closest value.
+  
+
+### Elevation Data
+
+To calculate moonlight data, we also pulled elevation data from the lat/lon
+coords of each `station_id`.
+
+The package `elevatr` was used to get the elevation of each station using
+the lat/lon coords of the station. Using `elevatr::get_elev_point()`, we
+pulled elevation data from an API. Specifically, we pulled elevation data with
+the argument `src = "aws`, which downloads a DEM and extracts elevation for
+each lat/lon coord from the [Amazon Web Services Terrain Tiles](https://registry.opendata.aws/terrain-tiles/).
+Elevation data is returned in meters.
+
+
+## Datasets
+
+### **final_diurnal.RData**
+
+[**final_diurnal.RData**](../data/final_diurnal.RData) is the final dataset
+used for diurnal modelling analyses. The dataset contains 30 columns.
+
+Load the data into R with the dataframe object named as `final_diurnal`
+```r
+your_directory <- "specify_file_path"
+load(here(your_directory, "final_diurnal.RData"))
+```
+
+The names, descriptions, and data classes of each column are described below:
 
 Column number | Column name | Description of column | Data class of column
 |---|---|---|---|
@@ -109,29 +182,65 @@ Column number | Column name | Description of column | Data class of column
 [8] | `station_id` | unique identifier for the BirdWeather station of the recorded vocalization | (double)
 [9] | `year` | year of vocalization; extracted from [4] `date` | (double)
 [10] | `month` | month of vocalization; extracted from [4] `date` | (integer)
-[11] | `avg_rad` | average radiance; unit = nW/cm^2/sr [(see VIIRS for more info)](#viirs-information) | (double)
-[12] | `rad_cat` | category of radiance, classified has "low", "med", or "high" [(see VIIRS for more info)](#viirs-information) | (string)
+[11] | `avg_rad` | average radiance; unit = nW/cm^2/sr ([see VIIRS for more info)](#viirs-data)) | (double)
+[12] | `rad_cat` | category of radiance, classified has "low", "med", or "high" ([see VIIRS for more info](#viirs-data)) | (string)
 [13] | `sunrise` | date and time of sunrise on the [3] `date_time` of the vocalization in UTC timezone | (POSIXct)
 [14] | `sunset` | date and time of sunset on the [3] `date_time` of the vocalization in UTC timezone | (POSIXct)
 [15] | `first_onset` | [time of first vocalization detection minus time of local sunrise] | (double)
 [16] | `median_dawn` | [time of 50% vocalization detection minus time of local sunrise] | (double)
-[17] | `sunrise_cloud_cover_percent` | mean [cloud_cover (unit = %)](#weather-information) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[18] | `sunrise_cloud_cover_low_percent` | mean [cloud_cover_low (unit = %)](#weather-information) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[19] | `sunrise_cloud_cover_mid_percent` | mean [cloud_cover_mid (unit = %)](#weather-information) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[20] | `sunrise_cloud_cover_high_percent` | mean [cloud_cover_high (unit = %)](#weather-information) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[21] | `sunrise_precipitation_mm` | mean [precipitation (unit = millimeters)](#weather-information) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[22] | `sunrise_rain_mm` | mean [rain (unit = millimeters)](#weather-information) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[23] | `sunrise_snowfall_cm` | mean [snowfall (unit = millimeters)](#weather-information) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[24] | `sunset_cloud_cover_percent` | mean [cloud_cover (unit = %)](#weather-information) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[25] | `sunset_cloud_cover_low_percent` | mean [cloud_cover_low (unit = %)](#weather-information) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[26] | `sunset_cloud_cover_mid_percent` | mean [cloud_cover_mid (unit = %)](#weather-information) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[27] | `sunset_cloud_cover_high_percent` | mean [cloud_cover_high (unit = %)](#weather-information) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[28] | `sunset_precipitation_mm` | mean [precipitation (unit = millimeters)](#weather-information) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[29] | `sunset_rain_mm` | mean [rain (unit = millimeters)](#weather-information) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[30] | `sunset_snowfall_cm` | mean [snowfall (unit = millimeters)](#weather-information) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[17] | `sunrise_cloud_cover_percent` | mean [cloud_cover (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[18] | `sunrise_cloud_cover_low_percent` | mean [cloud_cover_low (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[19] | `sunrise_cloud_cover_mid_percent` | mean [cloud_cover_mid (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[20] | `sunrise_cloud_cover_high_percent` | mean [cloud_cover_high (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[21] | `sunrise_precipitation_mm` | mean [precipitation (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[22] | `sunrise_rain_mm` | mean [rain (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[23] | `sunrise_snowfall_cm` | mean [snowfall (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[24] | `sunset_cloud_cover_percent` | mean [cloud_cover (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[25] | `sunset_cloud_cover_low_percent` | mean [cloud_cover_low (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[26] | `sunset_cloud_cover_mid_percent` | mean [cloud_cover_mid (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[27] | `sunset_cloud_cover_high_percent` | mean [cloud_cover_high (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[28] | `sunset_precipitation_mm` | mean [precipitation (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[29] | `sunset_rain_mm` | mean [rain (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[30] | `sunset_snowfall_cm` | mean [snowfall (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
 
 
-## **final_nocturnal.RData**
+### **final_nocturnal.RData**
 
-[**final_diurnal.RData**]() is the final dataset used for nocturnal modelling analyses.
-The dataset contains X columns, with each column name and class described below:
+[**final_diurnal.RData**](../data/final_nocturnal.RData) is the final dataset
+used for nocturnal modelling analyses. The dataset contains 24 columns.
+
+Load the data into R with the dataframe object named as `final_nocturnal`
+```r
+your_directory <- "specify_file_path"
+load(here(your_directory, "final_nocturnal.RData"))
+```
+
+The names, descriptions, and data classes of each column are described below:
+
+Column number | Column name | Description of column | Data class of column
+|---|---|---|---|
+[1] | "station_id" | unique identifier for the BirdWeather station of the recorded vocalization | (double)
+[2] | "night_id" | the day of the month (e.g., a date of 2026-05-08 will have `night_id` of 8) | (double)
+[3] | "night_start" | the UTC sunset of the day of `night_id` | (POSIXct)
+[4] | "night_end" | the UTC sunrise following the sunset of `night_start` | (POSIXct)
+[5] | "year" | year of vocalization; extracted from [3] `night_start` | (double)
+[6] | "month" | month of vocalization; extracted from [3] `night_start` | (integer)
+[7] | "common_name" | common name of vocalizing species | (string)
+[8] | "det" | **???? Presence/absence of vocalization?** | (double)
+[9] | "latitude" | latitude coordinate of the station where vocalization was recorded | (double)
+[10] | "longitude" | longitude coordinate of the station where vocalization was recorded | (double)
+[11] | "avg_rad" | average radiance; unit = nW/cm^2/sr ([see VIIRS for more info)](#viirs-data)) | (double)
+[12] | "rad_cat" | category of radiance, classified has "low", "med", or "high" ([see VIIRS for more info](#viirs-data)) | (string)
+[13] | "nightly_cloud_cover_percent" |  mean [cloud_cover (unit = %)](#weather-data) summarized between [3] `night_start` and [4] `night_end` | (double)
+[14] | "nightly_cloud_cover_low_percent" | mean [cloud_cover_low (unit = %)](#weather-data) summarized between [3] `night_start` and [4] `night_end` | (double)
+[15] | "nightly_cloud_cover_mid_percent" | mean [cloud_cover_mid (unit = %)](#weather-data) summarized between [3] `night_start` and [4] `night_end` | (double)
+[16] | "nightly_cloud_cover_high_percent" | mean [cloud_cover_high (unit = %)](#weather-data) summarized between [3] `night_start` and [4] `night_end` | (double)
+[17] | "nightly_precipitation_mm" | mean [precipitation (unit = millimeters)](#weather-data) summarized between [3] `night_start` and [4] `night_end` | (double)
+[18] | "nightly_rain_mm" | mean [rain (unit = millimeters)](#weather-data) summarized between [3] `night_start` and [4] `night_end` | (double)
+[19] | "nightly_snowfall_cm" | mean [snowfall (unit = millimeters)](#weather-data) summarized between [3] `night_start` and [4] `night_end` | (double)
+[20] | "mean_moonlight" | mean [moonlight intensity (unit = lux)](#moonlight-data) summarized between [3] `night_start` and [4] `night_end` | (double)
+[21] | "median_moonlight" | median [moonlight intensity (unit = lux)](#moonlight-data) summarized between [3] `night_start` and [4] `night_end` | (double)
+[22] | "max_moonlight" | max [moonlight intensity (unit = lux)](#moonlight-data) summarized between [3] `night_start` and [4] `night_end` | (double)
+[23] | "min_moonlight" | min [moonlight intensity (unit = lux)](#moonlight-data) summarized between [3] `night_start` and [4] `night_end` | (double)
+[24] | "midnight_moonlight" | value of [moonlight intensity (unit = lux)](#moonlight-data) at approximately "solar midnight" | (double)
+
