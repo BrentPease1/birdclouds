@@ -170,8 +170,11 @@ Elevation data is returned in meters.
 
 ### **final_diurnal.RData**
 
-[**final_diurnal.RData**](../data/final_diurnal.RData) is the final dataset
-used for diurnal modelling analyses. The dataset contains 30 columns.
+[**final_diurnal.RData**](https://saluki.sharepoint.com/:f:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA?csf=1&web=1&e=RMAs1a)
+is the final dataset used for diurnal modelling analyses. The dataset contains 30 columns.
+
+The diurnal dataset can be downloaded from the shared TEAMS folder:
+[`General/data_prep_pull/ANALYSIS_READY_DATA/final_diurnal.RData`](https://saluki.sharepoint.com/:f:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA?csf=1&web=1&e=RMAs1a)
 
 Load the data into R with the dataframe object named as `final_diurnal`
 ```r
@@ -217,8 +220,11 @@ Column number | Column name | Description of column | Data class of column
 
 ### **final_nocturnal.RData**
 
-[**final_diurnal.RData**](../data/final_nocturnal.RData) is the final dataset
-used for nocturnal modelling analyses. The dataset contains 24 columns.
+[**final_nocturnal.RData**](https://saluki.sharepoint.com/:f:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA?csf=1&web=1&e=RMAs1a)
+is the final dataset used for nocturnal modelling analyses. The dataset contains 24 columns.
+
+The nocturnal dataset can be downloaded from the shared TEAMS folder:
+[`General/data_prep_pull/ANALYSIS_READY_DATA/final_diurnal.RData`](https://saluki.sharepoint.com/:f:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA?csf=1&web=1&e=RMAs1a)
 
 Load the data into R with the dataframe object named as `final_nocturnal`
 ```r
