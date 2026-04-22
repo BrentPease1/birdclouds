@@ -46,7 +46,7 @@ repo for bird cloud GILBERT X PEASE manuscript
 
 #### [data/L0](data/L0)
 
-* [This is a placeholder]
+* [stations_mar2026.csv](data/L0/stations_mar2026.csv) List of BirdWeather stations extracted from the raw BirdWeather data for the study period. Each station was assigned a unique ID number (station_id), and the list also contains the longitude and latitude coordinates of each station.
 * [This is a placeholder]
 * [This is a placeholder]
 
