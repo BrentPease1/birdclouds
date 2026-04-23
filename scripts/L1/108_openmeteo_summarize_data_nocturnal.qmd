@@ -1,0 +1,289 @@
+---
+title: 108_openmeteo_summarize_data_nocturnal.qmd
+toc: true
+format:
+ html:
+   embed-resources: true
+date: 2026-03-16 # last-modified
+date-format: "yyyy-MM-dd"
+abstract: This script summarizes weather data from the openmeteo API
+          for each BirdWeather station, using 3hr buffers around sunset
+          and sunrise times across the study period
+---
+
+# Set up environment
+
+```{r}
+# ------------ SET UP ENVIRONMENT ------------
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+pacman::p_load(tidyverse, here, furrr, suncalc, data.table)
+
+# Clear envionrment
+rm(list = ls())
+gc()
+
+# Set working directory
+here::i_am("scripts/L1/108_openmeteo_summarize_data_nocturnal.qmd")
+```
+
+
+# Nocturnal data
+
+We'll want to summarize the cloud cover data per night before joining such that we have a table with one row per station ID and night
+
+The tricky bit is that one night spans two calendar dates. So, you'll want to create a column in the weather data called "night_id". If, for example, we have data starting on March 1st, night 1 would begin at sunset on March 1st and end at sunrise on March 2nd, night 2 would begin at sunset on March 2nd and end at sunrise on March 3rd, etc. L23-50 in the 102_data_prep_calculate_nocturnal_vocal_activity.R script (on the GitHub repo) gives an example of how to do this. Brent  - can you chime in if you made significant modifications to this night_id creation in your noct script?
+
+Once you have that night_id column created, you'll want to group by station id and night_id, and summarise the mean (and maybe standard deviation) as well. As a sanity check, this table should be ~2.8 million rows
+You'll then join to the prepped nocturnal voc data, joining on station ID and night ID.
+
+on the nocturnal activity files, you will see night_start (sunset heading into night) and night_end (sunrise following morning). You can use the night_start and night_end to summarise the weather data - that should make things simpler/easier
+
+
+## Read night_id
+
+Using distinct() on the nocturnal vocs dataset to get a smaller dataset with
+just unique stations and nights. We need to later join the summarized weather
+data back to the nocturnal vocs.
+
+```{r}
+# Get all nocturnal voc files in the folder
+nocturnal_files <- list.files(
+  here("data", "L0", "activity_measures", "nocturnal"),
+  pattern = "*.csv",
+  full.names = TRUE
+)
+
+# Set up parallel processing to read data faster
+# Make sure you have enough RAM and cores (adjust worker number as needed)
+plan(multisession, workers = 8) # parallel::detectCores() - 1)
+
+# Read all CSVs
+vocs_nocturnal <- future_map_dfr(
+  nocturnal_files,
+  function(file) {
+    gc() # clear RAM
+    read_csv(file)
+  },
+  .options = furrr_options(seed = TRUE, scheduling = 1)
+)
+
+# simplify to save memory
+nocturnal <- vocs_nocturnal |>
+  distinct(
+    station_id,
+    night_id,
+    night_start,
+    night_end,
+  )
+
+save(nocturnal, file = here("data", "L1", "108a_night_ids.RData"))
+
+rm(vocs_nocturnal)
+```
+
+```{r}
+# Load in the unique night_ids
+load(here("data", "L1", "108a_night_ids.RData"))
+```
+
+## Batching function
+
+```{r}
+# set up batching function
+
+# Function to process a batch and summarize cloud cover data
+ProcessCurrentBatch <- function(batch) {
+  gc()
+
+  batch_name <- paste0("batch_", as.character(batch), ".csv")
+  output_path <- file.path(summarized_weather_path, batch_name)
+
+  # If batch file already exists, skip it
+  if (file.exists(output_path)) {
+    message(sprintf("Skipping Batch: %d - File already exists.", batch))
+    return(NULL)
+  }
+
+  # Read in weather current batch
+  cat(sprintf("Starting Batch: %d", batch))
+
+  cloud <- read_csv(here(
+    "data",
+    "L1",
+    "updated_batches",
+    batch_name
+  ))
+
+  ids_in_batch <- unique(cloud$station_id)
+
+  # Grab subset of stations in the current batch
+  subset <- nocturnal |> filter(station_id %in% ids_in_batch)
+
+  # Join nocturnal data to cloud data?
+  joined <- subset |>
+    mutate(
+      rnd_night_start = lubridate::round_date(night_start, unit = "hour"),
+      rnd_night_end = lubridate::round_date(night_end, unit = "hour")
+    ) |>
+    left_join(
+      cloud,
+      by = join_by(
+        station_id == station_id,
+        # Weather time must be greater than or equal to start
+        rnd_night_start <= time_iso8601,
+        # Weather time must be less than or equal to end
+        rnd_night_end >= time_iso8601
+      )
+    )
+
+  # now summarize weather data
+  final_summary <- joined |>
+    group_by(station_id, night_id, night_start, night_end) |>
+    summarize(
+      across(
+        contains(c("cover", "_mm", "_cm")),
+        ~ mean(.x, na.rm = TRUE),
+        .names = "nightly_{.col}"
+      ),
+      .groups = "drop"
+    ) |>
+    # Clean up column names with % in them
+    rename_with(~ gsub("%", "percent", .x))
+
+  # Write batch to CSV
+  write_csv(final_summary, output_path)
+
+  cat(sprintf("Finished Batch: %d", batch))
+  rm(cloud, ids_in_batch, subset, joined, final_summary)
+  gc()
+}
+```
+
+
+
+## Run batches
+
+```{r}
+# For weather data, each batch has 60 stations
+
+# Create a results directory if it doesn't exist
+summarized_weather_path <- here(
+  "data",
+  "L1",
+  "108b_openmeteo_summarized_batches_nocturnal"
+)
+if (!file.exists(summarized_weather_path)) {
+  dir.create(summarized_weather_path)
+}
+
+weather_files <- list.files(
+  here("data", "L1", "updated_batches"),
+  pattern = "*.csv",
+  full.names = TRUE
+)
+
+max_batch <- length(weather_files) - 1
+
+# Set up parallel processing
+plan(multisession, workers = 16)
+
+# Run the map across all batch IDs
+future_walk(
+  0:max_batch,
+  ~ ProcessCurrentBatch(.x),
+  .options = furrr_options(seed = TRUE),
+  .progress = TRUE
+)
+```
+
+## tinkering - check data
+
+```{r}
+# --- Check using data from batch_0.csv
+
+#final_summary <- read_csv(here("data", "summarized_weather_batches_nocturnal", "batch_0.csv"))
+#cloud <- read_csv(here("data", "updated_batches", "batch_0.csv"))
+
+# From batch_0.csv, let's check station 720 - looks good!
+final_summary |>
+  filter(
+    station_id == 720,
+    between(night_start, as.Date("2024-04-01"), as.Date("2024-04-02"))
+  ) |>
+  print(width = 500)
+# start 04-01 16:06
+# end   04-02 04:17
+cloud |>
+  filter(
+    station_id == 720,
+    between(time_iso8601, as.Date("2024-04-01"), as.Date("2024-04-03"))
+  ) |>
+  slice(17:29) |> # matching rnd_night_start and rnd_night_end
+  summarise(across(everything(), ~ mean(.)))
+
+
+# From batch_0.csv, let's check station 972 - looks good!
+final_summary |>
+  filter(
+    station_id == 972,
+    between(night_start, as.Date("2024-11-05"), as.Date("2024-11-06"))
+  )
+# start at 2024-11-05 at 10:50
+# end at   2024-11-05 at 23:14
+cloud |>
+  filter(
+    station_id == 972,
+    between(time_iso8601, as.Date("2024-11-05"), as.Date("2024-11-07"))
+  ) |> #print(n=48)
+  slice(12:24) |>
+  summarise(across(everything(), ~ mean(.)))
+
+
+# Check using data from batch_81.csv
+final_summary <- read_csv(here(
+  "data",
+  "L1",
+  "108b_openmeteo_summarized_batches_nocturnal",
+  "batch_81.csv"
+))
+cloud <- read_csv(here("data", "L1", "updated_batches", "batch_81.csv"))
+
+# From batch_81.csv, let's check station 1131 - looks good!
+final_summary |>
+  filter(
+    station_id == 1131,
+    between(night_start, as.Date("2025-03-02"), as.Date("2025-03-03"))
+  ) |>
+  print(width = 500)
+# start 03-02 00:31
+# end   03-02 12:57
+cloud |>
+  filter(
+    station_id == 1131,
+    between(time_iso8601, as.Date("2025-03-02"), as.Date("2025-03-03"))
+  ) |>
+  slice(2:14) |> # matching rnd_night_start and rnd_night_end
+  summarise(across(everything(), ~ mean(.))) |>
+  print(width = 500)
+
+# From batch_81.csv, let's check station 7909 - looks good!
+final_summary |>
+  filter(
+    station_id == 7909,
+    between(night_start, as.Date("2024-10-08"), as.Date("2024-10-09"))
+  ) |>
+  print(width = 500)
+# start 10-08 23:05
+# end   10-09 11:42
+cloud |>
+  filter(
+    station_id == 7909,
+    between(time_iso8601, as.Date("2024-10-08"), as.Date("2024-10-10"))
+  ) |> #print(n=48)
+  slice(24:37) |> # matching rnd_night_start and rnd_night_end
+  summarise(across(everything(), ~ mean(.))) |>
+  print(width = 500)
+```

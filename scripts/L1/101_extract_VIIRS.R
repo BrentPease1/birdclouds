@@ -33,7 +33,10 @@
 #        12/../
 #      2025/../
 #  scripts/
-#    extract_VIIRS.R
+#    101_extract_VIIRS.R
+
+# The output script should be moved to the following directory:
+# birdclouds/data/L1/101_stations_with_VIIRS_2026_03_06.csv
 
 # ------------ SET UP ENVIRONMENT ------------
 # Load in packages
@@ -49,7 +52,7 @@ setDTthreads(0)
 overwrite = T
 
 
-here::i_am("scripts/extract_VIIRS.R")
+here::i_am("scripts/101_extract_VIIRS.R")
 
 # ------------ READ DATA ------------
 
@@ -213,7 +216,7 @@ out[,
 out[, lat_lon := .GRP, .(lat, lon)]
 
 
-fwrite(out, here("data", "stations_with_VIIRS_2026_03_06.csv"))
+fwrite(out, here("data", "101_stations_with_VIIRS_2026_03_06.csv"))
 
 
 ##### For data with data cols, notice discrepancy between `out` and `raw_data`

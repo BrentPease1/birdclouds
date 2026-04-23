@@ -1,0 +1,596 @@
+
+
+# Set up environment
+
+```{r}
+# ------------ SET UP ENVIRONMENT ------------
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+pacman::p_load(tidyverse, here, furrr, suncalc, data.table)
+
+# Clear envionrment
+rm(list = ls())
+gc()
+
+# Set working directory
+here::i_am("scripts/L1/109_moon_summarize_intensity.qmd")
+```
+
+
+# Nocturnal data 
+
+Script logic:
+
+Hourly moonlight data was extracted for each station_id.
+
+We had discussed some ideas for summarizing moonlight intensity.
+I summarized multiple metrics and we can justify one or pick one with AIC
+
+1. Join moonlight data to night_id (join_by rounded night_start / night_end)
+2. Summarize moonlight data for each station_id/night_id. Multiple summaries
+were calculated:
+  * mean moonlight between night_start and night_end
+  * median moonlight between night_start and night_end
+  * max moonlight between night_start and night_end
+  * min moonlight between night_start and night_end
+  * moonlight at approximately "solar midnight"
+    * rather than recalculating the exact "solar midnight", I just pull the moonlight value halfway between night_start & night_end. If there an even number of hours, I just take the larger moonlight value.
+
+## Read night_id
+
+```{r}
+load(here("data", "L1", "108a_night_ids.RData"))
+```
+
+
+## Batching function
+
+```{r}
+# set up batching function
+
+# Function to process a batch and summarize moonlight data
+ProcessCurrentBatch <- function(batch) {
+  gc()
+
+  batch_name <- paste0("batch_", as.character(batch), ".csv")
+  output_path <- file.path(summarized_moonlight_path, batch_name)
+
+  # If batch file already exists, skip it
+  if (file.exists(output_path)) {
+    message(sprintf("Skipping Batch: %d - File already exists.", batch))
+    return(NULL)
+  }
+
+  # Read in moonlight current batch
+  cat(sprintf("Starting Batch: %d", batch))
+
+  moonlight <- read_csv(here(
+    "data",
+    "L1",
+    "updated_batches_buffer", ################################################ BUFFER
+    batch_name
+  ))
+
+  ids_in_batch <- unique(moonlight$station_id)
+
+  # Grab subset of stations in the current batch
+  subset <- nocturnal |> filter(station_id %in% ids_in_batch)
+
+  # Join nocturnal data to moonlight data?
+  joined <- subset |>
+    mutate(
+      rnd_night_start = lubridate::round_date(night_start, unit = "hour"),
+      rnd_night_end = lubridate::round_date(night_end, unit = "hour")
+    ) |>
+    left_join(
+      moonlight,
+      by = join_by(
+        station_id == station_id,
+        # Moonlight time must be greater than or equal to start
+        rnd_night_start <= datetime_utc,
+        # Moonlight time must be less than or equal to end
+        rnd_night_end >= datetime_utc
+      )
+    )
+
+  # now summarize moonlight data
+  final_summary <- joined |>
+    group_by(station_id, night_id, night_start, night_end) |>
+    summarize(
+      # standard summary stats
+      mean_moonlight = mean(moonlight, na.rm = TRUE),
+      median_moonlight = median(moonlight, na.rm = TRUE),
+      max_moonlight = max(moonlight, na.rm = TRUE),
+      min_moonlight = min(moonlight, na.rm = TRUE),
+
+      # approx solar midnight
+      # Note that there might not be data for the hours of night start & end
+      #  because it was not quite yet night, according to moonlight calculation
+      #  logic from MoonShineR
+      midnight_moonlight = {
+        # Find the time halfway between night start and end
+        mid = night_start + (night_end - night_start) / 2
+
+        # Calculate time difference for all available moonlight data rows
+        diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+
+        # Find lowest time difference (closest to midpoint)
+        # This addresses cases where midpoint isn't available because midpoint
+        # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
+        vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+
+        # CATCH NA VALUES FROM WRONG NIGHT_IDs & >24-hr NIGHTS ISSUE - resolved :]
+        if (length(vals) > 0) {
+          # If there is a tie (midpoint is exactly between two hours),
+          # then take the max() moonlight value.
+          max(vals, na.rm = TRUE)
+        } else {
+          NA
+        }
+      },
+      .groups = "drop"
+    )
+
+  # Write batch to CSV
+  write_csv(final_summary, output_path)
+
+  cat(sprintf("Finished Batch: %d", batch))
+  rm(moonlight, ids_in_batch, subset, joined, final_summary)
+  gc()
+}
+```
+
+
+
+## Run batches
+
+```{r}
+# For moonlight data, each batch has 60 stations
+
+# Create a results directory if it doesn't exist
+summarized_moonlight_path <- here("data", "L1", "109_moon_summarized_batches")
+if (!file.exists(summarized_moonlight_path)) {
+  dir.create(summarized_moonlight_path)
+}
+
+moonlight_files <- list.files(
+  here("data", "L1", "updated_batches_buffer"), ################################################ BUFFER
+  pattern = "*.csv",
+  full.names = TRUE
+)
+
+max_batch <- length(moonlight_files) - 1
+
+# Set up parallel processing
+plan(multisession, workers = 16)
+
+# Run the map across all batch IDs
+future_walk(
+  0:max_batch,
+  ~ ProcessCurrentBatch(.x),
+  .options = furrr_options(seed = TRUE),
+  .progress = TRUE
+)
+```
+
+
+
+# tinkering (old code)
+
+## check data
+
+```{r}
+# --- Check using data from batch_0.csv
+
+#final_summary <- read_csv(here("data", "L1","109_moon_summarized_batches", "batch_0.csv"))
+moonlight <- read_csv(here(
+  "data",
+  "L1",
+  "updated_batches_buffer",
+  "batch_0.csv"
+))
+
+# From batch_0.csv, let's check station 720 - looks good!
+final_summary |>
+  filter(
+    station_id == 720,
+    between(night_start, as.Date("2024-04-01"), as.Date("2024-04-02"))
+  )
+# start 04-01 16:06
+# end   04-02 04:17
+moonlight |>
+  filter(
+    station_id == 720,
+    between(
+      datetime_utc,
+      as.POSIXct("2024-04-01 16:00:00", tz = "UTC"),
+      as.POSIXct("2024-04-02 04:00:00", tz = "UTC")
+    )
+  ) |>
+  summarize(
+    mean_moonlight = mean(moonlight, na.rm = TRUE),
+    median_moonlight = median(moonlight, na.rm = TRUE),
+    max_moonlight = max(moonlight, na.rm = TRUE),
+    min_moonlight = min(moonlight, na.rm = TRUE),
+    midnight_moonlight = {
+      # Find the time halfway between night start and end
+      # Note that there might not be data for the hours of night start & end
+      # because it was not quite yet night, according to moonlight calculation logic from MoonShineR
+      mid = as.POSIXct("2024-04-01 16:00:00", tz = "UTC") +
+        (as.POSIXct("2024-04-02 04:00:00", tz = "UTC") -
+          as.POSIXct("2024-04-01 16:00:00", tz = "UTC")) /
+          2
+
+      # Calculate time difference for all available moonlight data rows
+      diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+
+      # Find lowest time difference (closest to midpoint)
+      # This addresses cases where midpoint isn't available because midpoint
+      # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
+      vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+
+      # CATCH NA VALUES FROM WRONG NIGHT_IDs & >24-hr NIGHTS ISSUE - resolved :]
+      if (length(vals) > 0) {
+        # If there is a tie (midpoint is exactly between two hours),
+        # then take the max() moonlight value.
+        max(vals, na.rm = TRUE)
+      } else {
+        NA
+      }
+    }
+  )
+
+
+# From batch_0.csv, let's check station 972 - looks good!
+final_summary |>
+  filter(
+    station_id == 972,
+    between(night_start, as.Date("2024-11-05"), as.Date("2024-11-06"))
+  ) |>
+  print(width = 200)
+# start at 2024-11-05 at 10:50
+# end at   2024-11-05 at 23:14
+moonlight |>
+  filter(
+    station_id == 972,
+    between(
+      datetime_utc,
+      as.POSIXct("2024-11-05 11:00:00", tz = "UTC"),
+      as.POSIXct("2024-11-05 23:00:00", tz = "UTC")
+    )
+  ) |>
+  summarize(
+    mean_moonlight = mean(moonlight, na.rm = TRUE),
+    median_moonlight = median(moonlight, na.rm = TRUE),
+    max_moonlight = max(moonlight, na.rm = TRUE),
+    min_moonlight = min(moonlight, na.rm = TRUE),
+    midnight_moonlight = {
+      # Find the time halfway between night start and end
+      # Note that there might not be data for the hours of night start & end
+      # because it was not quite yet night, according to moonlight calculation logic from MoonShineR
+      mid = as.POSIXct("2024-11-05 11:00:00", tz = "UTC") +
+        (as.POSIXct("2024-11-05 23:00:00", tz = "UTC") -
+          as.POSIXct("2024-11-05 11:00:00", tz = "UTC")) /
+          2
+      # Calculate time difference for all available moonlight data rows
+      diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+
+      # Find lowest time difference (closest to midpoint)
+      # This addresses cases where midpoint isn't available because midpoint
+      # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
+      vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+
+      # CATCH NA VALUES FROM WRONG NIGHT_IDs & >24-hr NIGHTS ISSUE - resolved :]
+      if (length(vals) > 0) {
+        # If there is a tie (midpoint is exactly between two hours),
+        # then take the max() moonlight value.
+        max(vals, na.rm = TRUE)
+      } else {
+        NA
+      }
+    }
+  )
+
+
+# Check using data from batch_81.csv
+#final_summary <- read_csv(here("data", "L1", "109_moon_summarized_batches","batch_81.csv"))
+#moonlight <- read_csv(here("data", "L1", "updated_batches_buffer", "batch_81.csv"))
+
+# From batch_81.csv, let's check station 1131 - looks good!
+final_summary |>
+  filter(
+    station_id == 1131,
+    between(night_start, as.Date("2025-03-02"), as.Date("2025-03-03"))
+  ) |>
+  print(width = 200)
+# start 03-02 00:31
+# end   03-02 12:57
+moonlight |>
+  filter(
+    station_id == 1131,
+    between(
+      datetime_utc,
+      as.POSIXct("2025-03-02 01:00:00", tz = "UTC"),
+      as.POSIXct("2025-03-02 13:00:00", tz = "UTC")
+    )
+  ) |>
+  summarize(
+    mean_moonlight = mean(moonlight, na.rm = TRUE),
+    median_moonlight = median(moonlight, na.rm = TRUE),
+    max_moonlight = max(moonlight, na.rm = TRUE),
+    min_moonlight = min(moonlight, na.rm = TRUE),
+    midnight_moonlight = {
+      # Find the time halfway between night start and end
+      # Note that there might not be data for the hours of night start & end
+      # because it was not quite yet night, according to moonlight calculation logic from MoonShineR
+      mid = as.POSIXct("2025-03-02 01:00:00", tz = "UTC") +
+        (as.POSIXct("2025-03-02 13:00:00", tz = "UTC") -
+          as.POSIXct("2025-03-02 01:00:00", tz = "UTC")) /
+          2
+      # Calculate time difference for all available moonlight data rows
+      diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+
+      # Find lowest time difference (closest to midpoint)
+      # This addresses cases where midpoint isn't available because midpoint
+      # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
+      vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+
+      # CATCH NA VALUES FROM WRONG NIGHT_IDs & >24-hr NIGHTS ISSUE - resolved :]
+      if (length(vals) > 0) {
+        # If there is a tie (midpoint is exactly between two hours),
+        # then take the max() moonlight value.
+        max(vals, na.rm = TRUE)
+      } else {
+        NA
+      }
+    }
+  )
+
+
+# From batch_81.csv, let's check station 7909 - looks good!
+final_summary |>
+  filter(
+    station_id == 7909,
+    between(night_start, as.Date("2024-10-08"), as.Date("2024-10-09"))
+  ) |>
+  print(width = 200)
+# start 10-08 23:05
+# end   10-09 11:42
+moonlight |>
+  filter(
+    station_id == 7909,
+    between(
+      datetime_utc,
+      as.POSIXct("2024-10-08 23:00:00", tz = "UTC"),
+      as.POSIXct("2024-10-09 12:00:00", tz = "UTC")
+    )
+  ) |>
+  summarize(
+    mean_moonlight = mean(moonlight, na.rm = TRUE),
+    median_moonlight = median(moonlight, na.rm = TRUE),
+    max_moonlight = max(moonlight, na.rm = TRUE),
+    min_moonlight = min(moonlight, na.rm = TRUE),
+    midnight_moonlight = {
+      # Find the time halfway between night start and end
+      # Note that there might not be data for the hours of night start & end
+      # because it was not quite yet night, according to moonlight calculation logic from MoonShineR
+      mid = as.POSIXct("2024-10-08 23:00:00", tz = "UTC") +
+        (as.POSIXct("2024-10-09 12:00:00", tz = "UTC") -
+          as.POSIXct("2024-10-08 23:00:00", tz = "UTC")) /
+          2
+      # Calculate time difference for all available moonlight data rows
+      diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+
+      # Find lowest time difference (closest to midpoint)
+      # This addresses cases where midpoint isn't available because midpoint
+      # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
+      vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+
+      # --- old logic [start] ---
+      # Identify the target hours from midpoint time
+      #targets <- c(floor_date(mid, "hour"), ceiling_date(mid, "hour"))
+
+      # Grab the moonlight values for the target hours
+      #vals <- moonlight[datetime_utc %in% targets]
+      # --- old logic [end] ---
+
+      # CATCH NA VALUES FROM WRONG NIGHT_IDs & >24-hr NIGHTS ISSUE - resolved :]
+      if (length(vals) > 0) {
+        # If there is a tie (midpoint is exactly between two hours),
+        # then take the max() moonlight value.
+        max(vals, na.rm = TRUE)
+      } else {
+        NA
+      }
+    }
+  )
+```
+
+## tinker - check ALL data
+
+
+```{r}
+# import from combine_data
+
+all_data_path <- here(
+  "data",
+  "L2",
+  "201d_summarized_weather_data_nocturnal.RData"
+)
+
+load(all_data_path)
+
+
+# --- Check for any NAs
+moonlight_nocturnal |>
+  summarise(across(everything(), ~ sum(is.na(.)))) |>
+  print(width = 1000)
+
+# - (n=882 rows)
+moonlight_nocturnal |> filter(if_any(everything(), is.na)) |> count()
+
+# - Look at dates of NAs and whatnot - NAs dont seem to have any patterns
+# (good; not caused by any logic from summarizing and joining weather data to vocs data)
+nas <- moonlight_nocturnal |> filter(if_any(everything(), is.na))
+
+# get na stations
+ids_in_batch <- unique(nas$station_id)
+
+# Grab subset of na stations
+subset <- nocturnal |> filter(station_id %in% ids_in_batch)
+
+
+summarized_moonlight_path <- here("data", "L1", "109_moon_summarized_batches")
+
+# Combine the list into one big dataframe
+summarized_files <- list.files(
+  summarized_moonlight_path,
+  pattern = "*.csv",
+  full.names = TRUE
+)
+
+# Set up parallel processing to read data faster
+# Make sure you have enough RAM and cores (adjust worker number as needed)
+plan(multisession, workers = 8)
+
+# Read all CSVs
+na_data <- future_map_dfr(
+  summarized_files,
+  function(file) {
+    gc() # clear RAM
+    batch_data <- read_csv(file, show_col_types = FALSE)
+
+    stations <- batch_data |>
+      filter(station_id %in% subset$station_id) |>
+      mutate(file = as.character(file))
+
+    #batch_data[station_id %in% subset$station_id]
+
+    # save if we find some stations
+    if (length(stations) > 0) {
+      return(stations)
+    } else {
+      return(NA)
+    }
+  },
+  .options = furrr_options(seed = TRUE, scheduling = 1)
+) |>
+  na.omit()
+```
+
+
+### batch 1 station 5855
+
+```{r}
+# From batch_1.csv, let's check station 5855
+# identified issue with midpoint logic failing to catch midpoints that [FIXED]
+# are NA due to MoonShineR calculations dropping sunlight in moon data [FIXED]
+final_summary |>
+  filter(
+    station_id == 5855,
+    between(night_start, as.Date("2024-10-16"), as.Date("2024-10-17"))
+  ) |>
+  print(width = 200)
+# start 2024-10-16 10:34:31
+# end   2024-10-16 23:10:34
+moonlight |>
+  filter(
+    station_id == 5855,
+    between(
+      datetime_utc,
+      as.POSIXct("2024-10-16 11:00:00", tz = "UTC"),
+      as.POSIXct("2024-10-16 23:00:00", tz = "UTC")
+    )
+  )
+summarize(
+  mean_moonlight = mean(moonlight, na.rm = TRUE),
+  median_moonlight = median(moonlight, na.rm = TRUE),
+  max_moonlight = max(moonlight, na.rm = TRUE),
+  min_moonlight = min(moonlight, na.rm = TRUE),
+  midnight_moonlight = {
+    # Find the time halfway between night start and end
+    # Note that there might not be data for the hours of night start & end
+    # because it was not quite yet night, according to moonlight calculation logic from MoonShineR
+    mid = as.POSIXct("2024-10-16 11:00:00", tz = "UTC") +
+      (as.POSIXct("2024-10-16 23:00:00", tz = "UTC") -
+        as.POSIXct("2024-10-16 11:00:00", tz = "UTC")) /
+        2
+
+    # Calculate time difference for all available moonlight data rows
+    diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+
+    # Find lowest time difference (closest to midpoint)
+    # This addresses cases where midpoint isn't available because midpoint
+    # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
+    vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+
+    # --- old logic [start] ---
+    # Identify the target hours from midpoint time
+    #targets <- c(floor_date(mid, "hour"), ceiling_date(mid, "hour"))
+
+    # Grab the moonlight values for the target hours
+    #vals <- moonlight[datetime_utc %in% targets]
+    # --- old logic [end] ---
+
+    # CATCH NA VALUES FROM WRONG NIGHT_IDs & >24-hr NIGHTS ISSUE - resolved :]
+    if (length(vals) > 0) {
+      # If there is a tie (midpoint is exactly between two hours),
+      # then take the max() moonlight value.
+      max(vals, na.rm = TRUE)
+    } else {
+      NA
+    }
+  }
+)
+```
+
+
+### tinker - station 8856
+
+```{r}
+# From batch_131.csv, let's check station 8856
+uh <- read_csv(here(
+  "data",
+  "L1",
+  "summarized_moonlight_batches",
+  "batch_131.csv"
+))
+# Looks like this station is missing a lot of data...
+final_summary |>
+  filter(
+    station_id == 8856,
+    between(night_start, as.Date("2025-04-02"), as.Date("2025-04-03"))
+  ) |>
+  print(width = 200)
+# start 2025-04-02 23:15:47
+# end   2025-04-03 11:05:54
+# You can see that there is simply moonlight data missing for some reason
+moonlight |>
+  filter(
+    station_id == 8856,
+    between(
+      datetime_utc,
+      as.POSIXct("2025-04-02 23:00:00", tz = "UTC"),
+      as.POSIXct("2025-04-03 11:00:00", tz = "UTC")
+    )
+  )
+
+# If we loko at the lat/lon of this station, it's [90, -119]
+# this station is in the middle of the Arctic ocean....
+# I also investigated this station in the `get_moonlight_intensity` script.
+# Because it's in the middle of the ocean, there was no elevation data for it.
+# However NA elevations just default to 0.
+# Some dates for "moon_final_lux_nighttime" just show up as NA, which may
+# be related to Arctic dates/seasons & winters & auroras and whatnot
+# this is why there is data for some dates and not others.
+# regardless, we are going to throw out this station.
+
+brent_stations <- read_csv(here(
+  "data",
+  "L0",
+  "stations_mar2026.csv"
+)) |>
+  filter(station_id == 8856)
+```

@@ -1,0 +1,234 @@
+---
+title: 107_openmeteo_summarize_data_diurnal.qmd
+toc: true
+format:
+ html:
+   embed-resources: true
+date: 2026-03-16 # last-modified
+date-format: "yyyy-MM-dd"
+abstract: This script summarizes weather data from the openmeteo API
+          for each BirdWeather station, using 3hr buffers around sunset
+          and sunrise times across the study period
+---
+
+# Set up environment
+
+```{r}
+# ------------ SET UP ENVIRONMENT ------------
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+pacman::p_load(tidyverse, here, furrr, suncalc)
+
+# Clear envionrment
+rm(list = ls())
+gc()
+
+# Set working directory
+here::i_am("scripts/L1/107_openmeteo_summarize_data_diurnal.qmd")
+```
+
+
+# Diurnal data
+
+The time window for the diurnal analysis is a bit shorter since the response variable is time of earliest detection from sunrise (morning) and time of latest detection from sunset (evening). 
+Brent and I decided that we should summarise cloud cover in a 3-hr time window around sunrise and sunset.
+
+So, for each station_id, lat, lon, and date, you'll use suncalc to retrieve sunrise & sunset times.
+
+If, for example, sunrise is at 7:45AM, the hour of sunrise would be 7; you'd filter the weather data to the hours of 6, 7, and 8, and calculate the average. You can use the lubridate::hour() function to quickly grab the hour for a date-time column. 
+
+As a sanity check, you should be getting a table with ~2.8 million rows (if you have wide format with separate columns for sunrise and sunset cloud cover), or ~6 million rows (if you have long format)
+
+You'll then join to the prepped diurnal voc data, joining on station ID and date
+
+
+**my notes**
+
+* diurnal has `first_onset` and `median_dawn`
+  * `first_onset`  = Morning onset: time of first detection - local sunrise 
+  * `median_dawn` = Morning median: time of 50% detection - local sunrise
+
+
+## Read station data
+
+```{r}
+# Read stations data
+bw_stations <- read_csv(here("data", "L0", "stations_mar2026.csv")) |>
+  # Assign batch numbers used for weather data
+  mutate(batch_id = (row_number() - 1) %/% 60)
+
+gc()
+```
+
+## Summarize cloud cover data
+
+Calculate mean cloud cover in 3-hr time window around sunset and sunrise.
+
+* Round sunset & sunrise to nearest hour
+* Filter weather data to 3-hr window
+* Calculate mean cover in the two windows for each station_ID, date, [REMOVED: lat/lon]
+
+If, for example, sunrise is at 7:45AM, the hour of sunrise would be 7; you'd filter the weather data to the hours of 6, 7, and 8, and calculate the average. You can use the lubridate::hour() function to quickly grab the hour for a date-time column. 
+
+### batch function
+
+```{r}
+# set up batching function
+
+# Function to process a batch and summarize cloud cover data
+ProcessCurrentBatch <- function(batch) {
+  gc()
+
+  batch_name <- paste0("batch_", as.character(batch), ".csv")
+  output_path <- file.path(summarized_weather_path, batch_name)
+
+  # If batch file already exists, skip it
+  if (file.exists(output_path)) {
+    message(sprintf("Skipping Batch: %d - File already exists.", batch))
+    return(NULL)
+  }
+
+  # Read in weather current batch
+  cat(sprintf("Starting Batch: %d", batch))
+
+  cloud <- read_csv(here(
+    "data",
+    "L1",
+    "updated_batches",
+    batch_name
+  ))
+
+  # Grab subset of stations for current batch
+  subset <- bw_stations |> filter(batch_id == batch)
+
+  # Get sunlight info
+  sunlight_data <- cloud |>
+    mutate(
+      date = as.Date(time_iso8601),
+      rounded_time = lubridate::round_date(time_iso8601, unit = "hour")
+    ) |>
+    # Only keep dates within study extent
+    # One day before and after is kept though for summarizing data
+    filter(between(date, as.Date("2024-03-31"), as.Date("2025-05-01"))) |>
+    # Add sunrise/sunset info
+    # Other columns like the hourly time_iso8601 make multiple groups here,
+    # so we just grab the first one with [1], since the date/lat/lon are
+    # all the same within each grouping of station_id / date
+    group_by(station_id, date) |>
+    mutate(
+      sun_data = getSunlightTimes(
+        date = date[1],
+        lat = latitude[1],
+        lon = longitude[1],
+        keep = c("sunrise", "sunset"),
+        tz = "UTC"
+      ) |>
+        select(sunrise, sunset)
+    ) |>
+    unpack(sun_data) |>
+    ungroup()
+
+  # Create sunrise/sunset schedule for each station/lat/lon and date
+  schedule <- sunlight_data |>
+    distinct(station_id, date, sunrise, sunset) |>
+    mutate(
+      sr_round = lubridate::round_date(sunrise, unit = "hour"),
+      ss_round = lubridate::round_date(sunset, unit = "hour")
+    )
+
+  # Create a 3-hr buffer window around each sunrise/sunset
+  window <- schedule |>
+    reframe(
+      # Create the 3-hour windows
+      rounded_time = c(
+        # Sunrise
+        sr_round - hours(1),
+        sr_round,
+        sr_round + hours(1),
+        # Sunset
+        ss_round - hours(1),
+        ss_round,
+        ss_round + hours(1)
+      ),
+      type = rep(c("sunrise", "sunset"), each = 3),
+      # This 'date' is the "Anchor Date" requested in getSunlightTimes
+      anchor_date = date,
+      .by = c(station_id, date)
+    )
+
+  # Join window to station/weather/sunlight data
+  # > Adds the rounded sunrise/sunset hours to the station/weather/sunlight dataframe
+  # > Don't join by `date` because `rounded_time` includes date
+  joined <- sunlight_data |>
+    left_join(
+      window,
+      by = c("station_id", "rounded_time")
+    )
+
+  # Now summarize the sunset/sunrise windows for each station/lat/lon/date
+  final_summary <- joined |>
+    group_by(station_id, anchor_date) |>
+    summarize(
+      sunrise = first(sunrise),
+      sunset = first(sunset),
+      across(
+        contains(c("cover", "mm", "cm")),
+        ~ mean(.x[type == "sunrise"], na.rm = TRUE),
+        .names = "sunrise_{.col}"
+      ),
+      across(
+        contains(c("cover", "mm", "cm")) & !starts_with("sunrise"),
+        ~ mean(.x[type == "sunset"], na.rm = TRUE),
+        .names = "sunset_{.col}"
+      ),
+      .groups = "drop"
+    ) |>
+    # Clean up column names with % in them
+    rename_with(~ gsub("%", "percent", .x))
+
+  # Write batch to CSV
+  write_csv(final_summary, output_path)
+
+  cat(sprintf("Finished Batch: %d", batch))
+  rm(cloud, sunlight_data, schedule, window, joined, final_summary)
+  gc()
+}
+```
+
+### run batches
+
+```{r}
+# For weather data, each batch has 60 stations
+
+# Create a results directory if it doesn't exist
+summarized_weather_path <- here(
+  "data",
+  "L1",
+  "107_openmeteo_summarized_batches_diurnal"
+)
+if (!file.exists(summarized_weather_path)) {
+  dir.create(summarized_weather_path)
+}
+
+
+weather_files <- list.files(
+  here("data", "L1", "updated_batches"),
+  pattern = "*.csv",
+  full.names = TRUE
+)
+
+max_batch <- length(weather_files) - 1
+
+# Set up parallel processing
+plan(multisession, workers = 16)
+
+# Run the map across all batch IDs
+future_walk(
+  0:max_batch,
+  ~ ProcessCurrentBatch(.x),
+  .options = furrr_options(seed = TRUE),
+  .progress = TRUE
+)
+```

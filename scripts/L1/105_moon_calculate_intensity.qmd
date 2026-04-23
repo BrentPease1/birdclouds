@@ -1,0 +1,269 @@
+
+This script gets the value of moonlight intensity data for every hour of the study period at each station.
+
+# set up env
+```{r}
+# ------------ SET UP ENVIRONMENT ------------
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+# Install MoonShineR
+if (!require("moonshiner")) {
+  devtools::install_github("Crampton-Lab/MoonShineR_package")
+  rstudioapi::restartSession()
+}
+
+pacman::p_load(tidyverse, here, devtools, sf, elevatr, furrr, MoonShineR)
+
+# Clear envionrment
+rm(list = ls())
+
+# Set working directory
+here::i_am("scripts/L1/105_moon_calculate_intensity.qmd")
+```
+
+# read clean data
+
+```{r}
+# --- Read data
+bw_stations <- read_csv(here(
+  "data",
+  "L0",
+  "stations_mar2026.csv"
+)) |>
+  mutate(
+    station_id = row_number(),
+    batch_id = (row_number() - 1) %/% 60
+  )
+
+# --- Get elevation data
+elevations <- bw_stations |>
+  sf::st_as_sf(coords = c("longitude", "latitude"), crs = 4326) |>
+  elevatr::get_elev_point(src = "aws") |>
+  select(-batch_id)
+
+bw_stations <- left_join(bw_stations, elevations, by = "station_id") |>
+  select(-geometry, -elev_units)
+rm(elevations)
+
+# --- Set up date range
+
+# Create date list
+date_range <- seq(as.Date("2024-03-29"), as.Date("2025-05-03"), by = "day") # buffer study period by 3 days (to be excessively safe)
+
+# Combine dates with each station
+date_stations <- expand_grid(
+  station_id = unique(bw_stations$station_id), # Add dates to each station
+  date = date_range
+) |>
+  # Add station metadata
+  left_join(bw_stations, by = "station_id") |>
+  mutate(date = as.character(date))
+rm(bw_stations)
+
+save(
+  date_stations,
+  file = here("data", "L1", "105_station_date_elev_buffer.Rdata")
+) # buffer study period
+```
+
+
+```{r}
+# ------------ TIME FUNCTION ------------
+# FX: Reformats system time to a string
+GetTime <- function() {
+  format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+}
+```
+
+```{r}
+# use to suppress predict_lux messages
+quiet <- function(x) {
+  sink(tempfile())
+  on.exit({
+    sink()
+  })
+  invisible(force(x))
+}
+```
+
+# grab stuff
+
+```{r}
+# load date_elev data
+load(here("data", "L1", "105_station_date_elev_buffer.Rdata")) # buffer study period
+```
+
+```{r}
+plan(sequential)
+gc()
+
+# Create storage directory for station batches
+stations_batches_path <- here("data", "L1", "station_batches")
+completed_batches_path <- here("data", "L1", "completed_batches_buffer") # buffer study period
+
+batches <- dir(stations_batches_path)
+
+batch_results <- list()
+
+# the loops
+cat(sprintf(
+  "\n[%s] **** Starting to process %s ****",
+  GetTime(),
+  stations_batches_path
+))
+
+for (batch in seq_along(batches)) {
+  batch_name <- batches[batch]
+
+  cat(sprintf(
+    "\n[%s] Reading batch %d of %d: %s\n",
+    GetTime(),
+    batch,
+    max(seq_along(batches)),
+    batch_name
+  ))
+
+  # Read in current btch
+  current_batch <- read_csv(
+    here(stations_batches_path, batch_name),
+    show_col_types = FALSE
+  ) #|>
+  #left_join(date_stations, by = "station_id")
+
+  comp_batch_path <- here("data", "L1", "completed_batches_buffer", batch_name) # buffer study period
+
+  if (file.exists(comp_batch_path)) {
+    cat(sprintf(
+      "[%s] >>> Skipping batch %d, `%s` because batch has already been processed.",
+      GetTime(),
+      batch,
+      batch_name
+    ))
+    next
+  }
+
+  # start fresh workers for current btach
+  plan(multisession, workers = 16) #parallel::detectCores() - 1)
+  gc() # clear RAM
+
+  # Filter tasks for THIS batch only
+  current_tasks <- date_stations |>
+    filter(station_id %in% current_batch$station_id) |>
+    group_by(station_id, latitude, longitude, elevation) |>
+    summarize(
+      start = min(as.Date(date)),
+      days = as.numeric(max(as.Date(date)) - min(as.Date(date))) + 1,
+      .groups = "drop"
+    )
+
+  # Process
+  batch_results <- future_pmap_dfr(
+    list(
+      current_tasks$latitude,
+      current_tasks$longitude,
+      current_tasks$elevation,
+      current_tasks$start,
+      current_tasks$days,
+      current_tasks$station_id
+    ),
+    function(lat, lon, elev, s_date, t_days, sid) {
+      gc()
+      # The math
+      raw_lux <- quiet(predict_lux(
+        latitude = lat,
+        longitude = lon,
+        site_elev = elev,
+        time_zone = "UTC",
+        date_start = as.character(s_date),
+        time_start = "00:00:00",
+        duration_day = t_days,
+        time_interval_minutes = 60
+      ))
+      if (is.null(raw_lux)) {
+        return(NULL)
+      }
+      # data is hourly, so we summarize by UTC date using only nighttime lux
+      out <- raw_lux |>
+        # Only keep the hours where the moon is 'active'
+        filter(!is.na(moon_final_lux_nighttime)) |>
+        mutate(station_id = sid) |>
+        select(station_id, datetime, eclipse, moon_final_lux_nighttime) |>
+        rename(datetime_utc = datetime, moonlight = moon_final_lux_nighttime)
+
+      rm(raw_lux)
+      return(out)
+    },
+    .options = furrr_options(seed = TRUE, scheduling = 1)
+  )
+
+  # Save and then REMOVE from memory
+  write_csv(batch_results, comp_batch_path)
+
+  # Explicitly delete the big object before the next loop starts
+  plan(sequential)
+  rm(batch_results, current_tasks)
+  gc()
+  cat(sprintf(
+    "[%s] Saving batch %d of %d: `%s`\n",
+    GetTime(),
+    batch,
+    max(seq_along(batches)),
+    batch_name
+  ))
+}
+```
+
+
+# DEBUGGING BATCH 131 STATION 8856
+
+
+```{r}
+# run: `batch <- 38` to get batch_131.csv (i know its weird)
+# then run the logic within the loop/function to get the object `current_tasks` for this batch
+# you don't have to run the 3-5minutes to get the whole batch results
+
+# Now fix the station IDs
+brent_stations <- read_csv(here(
+  "data",
+  "L0",
+  "stations_mar2026.csv"
+)) |>
+  mutate(MY_ID = as.double(row_number())) |>
+  select(-latitude, -longitude)
+
+current_tasks |>
+  rename(station = station_id) |>
+  left_join(brent_stations, join_by(station == MY_ID)) |>
+  select(station_id, everything()) |>
+  select(-station) |>
+  # now filter for our station with issues
+  filter(station_id == 8856)
+
+# see that the lat/lon is weird (under da sea),
+# > thus we dont get an elevation,
+
+# See how theres some data for 2024 & 2025 for "moon_final_lux_nighttime",
+# This maye has to do with the whole eternal night days in the arctic winters
+predict_lux(
+  latitude = 90,
+  longitude = -119,
+  site_elev = NA, # the function automatically turns this to 0 if NA
+  time_zone = "UTC",
+  date_start = as.character("2024-04-01"), # april
+  time_start = "00:00:00",
+  duration_day = 1,
+  time_interval_minutes = 60
+)
+predict_lux(
+  latitude = 90,
+  longitude = -119,
+  site_elev = NA, # the function automatically turns this to 0 if NA
+  time_zone = "UTC",
+  date_start = as.character("2024-11-01"), # november
+  time_start = "00:00:00",
+  duration_day = 1,
+  time_interval_minutes = 60
+)
+```
