@@ -36,3 +36,6 @@ rsconnect/
 birdclouds.Rproj
 # big data
 data/L0/activity_measures
+# dumb file
+questionable_all.csv
+
