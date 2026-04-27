@@ -82,7 +82,7 @@ weather_diurnal <- future_map_dfr(
 
 save(
   weather_diurnal,
-  file = here("data", "L2", "201a_summarized_weather_data_diurnal.RData")
+  file = here("data", "L2", "summarized_weather_data_diurnal.RData")
 )
 ```
 
@@ -113,7 +113,7 @@ vocs_diurnal <- future_map_dfr(
 
 save(
   vocs_diurnal,
-  file = here("data", "L2", "201b_activity_measures_diurnal.RData")
+  file = here("data", "L2", "activity_measures_diurnal.RData")
 )
 ```
 
@@ -128,7 +128,7 @@ viirs <- read_csv(viirs_path)
 
 save(
   viirs,
-  file = here("data", "L2", "201c_stations_with_VIIRS_2026_03_06.RData")
+  file = here("data", "L2", "stations_with_VIIRS_2026_03_06.RData")
 )
 ```
 
@@ -139,11 +139,11 @@ Join diurnal vocs & weather & VIIRS data
 ```{r}
 # Quick load data
 # Diurnal weather data
-load(here("data", "L2", "201a_summarized_weather_data_diurnal.RData"))
+load(here("data", "L2", "summarized_weather_data_diurnal.RData"))
 # Diurnal vocalizations
-load(here("data", "L2", "201b_activity_measures_diurnal.RData"))
+load(here("data", "L2", "activity_measures_diurnal.RData"))
 # VIIRS data
-load(here("data", "L2", "201c_stations_with_VIIRS_2026_03_06.RData"))
+load(here("data", "L2", "stations_with_VIIRS_2026_03_06.RData"))
 ```
 
 "You'll then join to the prepped diurnal voc data, joining on station ID and date"
@@ -173,16 +173,12 @@ final_diurnal <- vocs_diurnal |>
     )
   ) |>
   # ---- Clean up the dataframe for export
-  # Pivot `first_onset` and `median_dawn` into their own column
-  pivot_wider(names_from = category, values_from = value) |>
   # Change month to an integer instead of a string
   mutate(month = as.integer(month)) |>
   # Reorder columns
   relocate(year, month, .after = year) |>
   # Remove unnecessary columns from VIIRS data
-  select(-lat_lon, -lat, -lon) |>
-  # Reorder columns
-  relocate(first_onset, median_dawn, .after = sunset)
+  select(-lat_lon, -lat, -lon)
 
 
 # Check VIIRS and final was successful
@@ -202,33 +198,34 @@ final_diurnal |>
   print(width = 1000)
 
 
-#h<-final_diurnal |> filter(station_id == 2321)
-
 # --- Check for any NAs
 final_diurnal |>
   summarise(across(everything(), ~ sum(is.na(.)))) |>
   print(width = 1000)
 
-# - station_id=2321 and station_id=4979 are missing some first_onset/median_dawn data
-vocs_diurnal |>
+# -  station_id=4979 is missing some weather data
+final_diurnal |>
   filter(station_id == 4979) |>
   filter(if_any(everything(), is.na)) |>
   glimpse()
-vocs_diurnal |>
-  filter(station_id == 2321) |>
-  filter(if_any(everything(), is.na)) |>
-  glimpse()
 
-# - Also, station 8856 is missing some weather data and first_onset/median_dawn data
+# - Also, station 8856 is missing some weather data
 # Due to the issues observed with this station (see nocturnal section for more info)
 # station_id=8856 was REMOVED
+final_diurnal |>
+  filter(station_id == 8856) |>
+  glimpse()
+
+# station_id==2321 was missing a few sunrise/set values
+final_diurnal |>
+  filter(station_id == 2321 & (is.na(sunrise) | is.na(sunset))) |>
+  count()
 
 # - REMOVE OBSERVED NA VALUES
 final_diurnal <- final_diurnal |>
   filter(
-    !(station_id == 8856) &
-      !(station_id %in% c(2321, 4979, 8856)) &
-      (!is.na(first_onset) | !is.na(median_dawn))
+    !(station_id %in% c(4979, 8856)) &
+      !(is.na(sunrise) | is.na(sunset))
   )
 
 # Now there are no unsolved cases of NAs :]
@@ -239,10 +236,27 @@ final_diurnal |> filter(if_any(everything(), is.na)) |> count()
 #   group_by(station_id, date) |>
 #   summarize(across(everything(), ~ sum(is.na(.))))
 
-###### EXPORT DATASET - multiple types for safety and im tired
-write_rds(final_diurnal, here("data", "L2", "final_diurnal.rds"))
+# Create different datasets to analyze for modelling
+final_diurnal_first_onset <- final_diurnal |>
+  filter(category == "first_onset") |>
+  pivot_wider(names_from = category, values_from = value) |>
+  relocate(first_onset, .before = sunrise)
+
+final_diurnal_ev_ces <- final_diurnal |>
+  filter(category == "ev_ces") |>
+  pivot_wider(names_from = category, values_from = value) |>
+  relocate(ev_ces, .before = sunrise)
+
+###### EXPORT DATASET
 save(final_diurnal, file = here("data", "L2", "final_diurnal.RData"))
-data.table::fwrite(final_diurnal, here("data", "L2", "final_diurnal.csv"))
+save(
+  final_diurnal_first_onset,
+  file = here("data", "L2", "final_diurnal_first_onset.RData")
+)
+save(
+  final_diurnal_ev_ces,
+  file = here("data", "L2", "final_diurnal_ev_ces.RData")
+)
 ```
 
 # Nocturnal analysis
@@ -307,7 +321,7 @@ weather_nocturnal <- future_map_dfr(
 
 save(
   weather_nocturnal,
-  file = here("data", "L2", "201d_summarized_weather_data_nocturnal.RData")
+  file = here("data", "L2", "summarized_weather_data_nocturnal.RData")
 )
 ```
 
@@ -341,7 +355,7 @@ moonlight_nocturnal <- future_map_dfr(
 
 save(
   moonlight_nocturnal,
-  file = here("data", "L2", "201e_summarized_moonlight_data_nocturnal.RData")
+  file = here("data", "L2", "summarized_moonlight_data_nocturnal.RData")
 )
 ```
 
@@ -372,7 +386,7 @@ vocs_nocturnal <- future_map_dfr(
 
 save(
   vocs_nocturnal,
-  file = here("data", "L2", "201f_activity_measures_nocturnal.RData")
+  file = here("data", "L2", "activity_measures_nocturnal.RData")
 )
 ```
 
@@ -387,13 +401,13 @@ Join nocturnal vocs & weather & moonlight & VIIRS data
 ```{r}
 # Quick load data
 # Nocturnal weather data
-load(here("data", "L2", "201d_summarized_weather_data_nocturnal.RData"))
+load(here("data", "L2", "summarized_weather_data_nocturnal.RData"))
 # Moonlight data
-load(here("data", "L2", "201e_summarized_moonlight_data_nocturnal.RData"))
+load(here("data", "L2", "summarized_moonlight_data_nocturnal.RData"))
 # Nocturnal vocalizations
-load(here("data", "L2", "201f_activity_measures_nocturnal.RData"))
+load(here("data", "L2", "activity_measures_nocturnal.RData"))
 # VIIRS data
-load(here("data", "L2", "201c_stations_with_VIIRS_2026_03_06.RData"))
+load(here("data", "L2", "stations_with_VIIRS_2026_03_06.RData"))
 ```
 
 
