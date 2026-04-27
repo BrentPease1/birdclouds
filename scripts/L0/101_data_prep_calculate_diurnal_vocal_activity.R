@@ -101,8 +101,8 @@ results_list <- list(list())
 results_list_continent <- list(list())
 
 # debugging helpers
-c = 'Europe'
-m = 4
+# c = 'Europe'
+# m = 4
 
 for (c in continents) {
   print(c)
@@ -157,11 +157,11 @@ for (c in continents) {
     bw <- merge(bw, station_dates, by = c("station_id", "date", "latitude", "longitude"))
     
     # must have detections within 2hrs of sunrise AND later in the day AND afternoon
-    bw[, has_dawn_dets := any(datetime >= (sunrise - 2*3600) & datetime < (sunrise + 2*3600)), 
+    bw[, has_dawn_dets := any(datetime >= (sunrise - 2*3600) & datetime < (sunrise + 2*3600)),
        .(station_id, date)]
-    bw[, has_daytime_dets := any(datetime >= sunrise & datetime < solarNoon), 
+    bw[, has_daytime_dets := any(datetime >= sunrise & datetime < solarNoon),
        .(station_id, date)]
-    bw[, has_evening_dets := any(datetime >= solarNoon & datetime < sunset), 
+    bw[, has_evening_dets := any(datetime >= solarNoon & datetime < sunset),
        .(station_id, date)]
     
     bw <- bw[has_dawn_dets == TRUE & has_daytime_dets == TRUE & has_evening_dets == TRUE,]
@@ -178,7 +178,7 @@ for (c in continents) {
     # 
     # 
     # # how long was station running that day?
-    # bw[, det_window_hrs := as.numeric(difftime(max(datetime), min(datetime), units = "hours")), 
+    # bw[, det_window_hrs := as.numeric(difftime(max(datetime), min(datetime), units = "hours")),
     #    .(station_id, date)]
     
     # drop off those
@@ -191,207 +191,198 @@ for (c in continents) {
     
     # filter down to continent
     # traveling pucs, etc cause issues
-    # trying to make it faster for big continent months like EU and NA.
+    # bounding box pre-filter is fast; full st_intersects kept as a comment if needed
     target_continent <- continent_shapes[continent_shapes$continent == c, ]
     target_continent <- st_simplify(target_continent, dTolerance = 0.1)
     
     bbox <- st_bbox(target_continent)
-    bw_sub <- bw[longitude >= bbox["xmin"] & longitude <= bbox["xmax"] &
-                   latitude  >= bbox["ymin"] & latitude  <= bbox["ymax"], ]
+    bw <- bw[longitude >= bbox["xmin"] & longitude <= bbox["xmax"] &
+               latitude  >= bbox["ymin"] & latitude  <= bbox["ymax"], ]
     
-    # the above is probably good enough
-    # tmp <- st_as_sf(bw_sub, coords = c("longitude", "latitude"), crs = 4326)
-    # bw <- bw_sub[lengths(st_intersects(tmp, target_continent)) > 0, ]
-    # rm(tmp, bw_sub)
-    
-
-    # get grouping variables
-    # bw[, station_date := .GRP, .(station_id, date)]
-    # setkey(bw, station_date)
+    # FIX 1: restore station_date as a pre-keyed integer
+    bw[, station_date := .GRP, .(station_id, date)]
+    setkey(bw, station_date)
     
     # remove spp we don't care about, function at top
     bw <- remove_unwanted_spp(bw)
     
-    # count the detections per spp per station-date
-    total_spp <- bw[, .N, by = .(common_name, species_id, station_id)]
+    # FIX 2: count detections per spp per station-date (not just station)
+    total_spp <- bw[, .N, by = .(common_name, species_id, station_date)]
     
     total_spp <- total_spp[N > detection_filter, ] #min observations per species per station_date
     focal_spp <- total_spp[, unique(common_name)]
     focal_spp <- sort(focal_spp)
     
-
-
+    
+    species_holder <- list()
+    species_counter = 0
+    for (f in focal_spp) {
+      species_counter = species_counter + 1
+      single_spp_dets <- bw[common_name == f, ]
       
-      species_holder <- list()
-      species_counter = 0
-      for (f in focal_spp) {
-        species_counter = species_counter + 1
-        single_spp_dets <- bw[common_name == f, ]
-        
-
-        # grab sunset and sunrise time
-        # NOTE: Force TZ=UTC to avoid suncalc DST bug on system-local DST days
-        old_tz_main <- Sys.getenv("TZ")
-        Sys.setenv(TZ = "UTC")
-        
-        # now start working on timezone and clocks
-        # Generate the sunlight times
-        time_frame <- getSunlightTimes(
-          data = single_spp_dets[, .(date = date,
-                                     lat = latitude,
-                                     lon = longitude)],
-          keep = c(
-            
-            "nadir"
-          )
-        )
-        if (old_tz_main == "") Sys.unsetenv("TZ") else Sys.setenv(TZ = old_tz_main)
-        
-        time_frame <- setDT(time_frame)
-        # bring everything together and bind
-        
-        single_spp_dets <- cbind(single_spp_dets, time_frame[, 4:ncol(time_frame)])
-        
-        # add a next day nadir
-        single_spp_dets[, nadir2 := nadir + 24 * 60 * 60]
-        
-        
-        
-        
-        # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
-        #Morning onset: time of first detection - local sunrise ####
-        # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
-        
-        first_onset <- single_spp_dets[datetime >= nadir &
-                                         datetime < solarNoon, ]
-        if (nrow(first_onset) != 0) {
-          # store the earliest detection by station_date
-          first_onset[, min_time_det := min(datetime), .(station_id, date)]
-          first_onset[, first_onset := int_length(interval(sunrise, min_time_det)) /
-                        60, .(station_id, date)]
-          first_onset <- first_onset[!duplicated(station_id, date), .(first_onset, station_id, date)]
-          setkey(first_onset, station_id)
-          first_onset[, category := "first_onset"]
-          setnames(first_onset, old = 'first_onset', new = 'value')
-        } else{
-          first_onset <- data.table(
-            value = NA,
-            station_id = NA,
-            date = NA,
-            category = "first_onset"
-          )
-        }
-        
-        # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
-        #Morning median: time of 50% detection - local sunrise ####
-        # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
-        # median activity
-        med_voc <- single_spp_dets[datetime >= nadir &
-                                     datetime < solarNoon, ]
-        if (nrow(med_voc) != 0) {
-          med_voc[, med_voc := quantile(datetime, probs = 0.5), .(station_id, date)]
-          med_voc <- med_voc[, int_length(interval(sunrise, med_voc)) /
-                               60, .(station_id, date)]
-          setnames(med_voc, old = "V1", new = 'med_voc')
-          med_voc <- med_voc[!duplicated(station_id, date), .(med_voc, station_id, date)]
-          setkey(med_voc, station_id)
-          med_voc[, category := "median_dawn"]
-          setnames(med_voc, old = 'med_voc', new = 'value')
-        } else{
-          med_voc <- data.table(
-            value = NA,
-            station_id = NA,
-            date = NA,
-            category = "median_dawn"
-          )
-        }
-        
-        
-        # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
-        #Evening cessation: time of last detection - local sunset ####
-        # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
-        
-        ev_ces <- single_spp_dets[datetime >= solarNoon &
-                                    datetime < nadir2, ]
-        if (nrow(ev_ces) != 0) {
-          ev_ces[, max_time_det := max(datetime), by = .(station_id, date)]
-          ev_ces[, ev_ces := int_length(interval(sunset, max_time_det)) /
-                   60, by = .(station_id, date)]
-          ev_ces <- ev_ces[!duplicated(station_id, date), .(ev_ces, station_id, date)]
-          setkey(ev_ces, station_id)
-          ev_ces[, category := "ev_ces"]
-          setnames(ev_ces, old = 'ev_ces', new = 'value')
-        } else{
-          ev_ces = data.table(
-            value = NA,
-            station_id = NA,
-            date = NA,
-            category = "ev_ces"
-          )
-        }
-        
-        
-        # bring together individual calculations
-        out <- rbindlist(l = list(first_onset, med_voc, ev_ces))
-        out <- out[!is.na(station_id), ] # throw out measures we couldn't calculate
-        if (nrow(out) == 0) {
-          next
-        }
-        out[, common_name := f, ] #add species name to out
-        setkey(out, station_id)
-        out <- merge(out, single_spp_dets[!duplicated(station_id, date), .(
-          scientific_name,
-          datetime,
-          date,
-          week,
-          latitude,
-          longitude,
-          station_id
-        )], by = c("station_id", "date"))
-        # drop station_date grouping variable
-       # out <- out[, !("station_date"), with = FALSE]
-        species_holder[[species_counter]] <- out
-        
-      } #species
-      species_holder <- rbindlist(species_holder)
-      # make sure directory exists
-      ifelse(!dir.exists(file.path(
-        here('data/L0/activity_measures/diurnal')
-      )), dir.create(file.path(
-        here('data/L0/activity_measures/diurnal')
-      )), FALSE)
-      # write file to directory
-      fwrite(
-        species_holder,
-        file = paste0(
-          here('data/L0/activity_measures/diurnal'),
-          "/activity_measures_",
-          c,
-          "_",
-          this_month,
-          "_conf_" ,
-          confidence_cutoff,
-          "_det_",
-          detection_filter,
-          ".csv"
-        )
+      # grab nadir time
+      # NOTE: Force TZ=UTC to avoid suncalc DST bug on system-local DST days
+      old_tz_main <- Sys.getenv("TZ")
+      Sys.setenv(TZ = "UTC")
+      
+      # Generate the sunlight times (nadir only — sunrise/solarNoon/sunset
+      # already merged in from station_dates above)
+      time_frame <- getSunlightTimes(
+        data = single_spp_dets[, .(date = date,
+                                   lat = latitude,
+                                   lon = longitude)],
+        keep = c("nadir")
       )
+      if (old_tz_main == "") Sys.unsetenv("TZ") else Sys.setenv(TZ = old_tz_main)
+      
+      time_frame <- setDT(time_frame)
+      # bring everything together and bind
+      single_spp_dets <- cbind(single_spp_dets, time_frame[, 4:ncol(time_frame)])
+      
+      # add a next day nadir for evening cessation window
+      single_spp_dets[, nadir2 := nadir + 24 * 60 * 60]
       
       
-      cat(
-        '\n\n',
+      
+      
+      # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
+      #Morning onset: time of first detection - local sunrise ####
+      # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
+      
+      first_onset <- single_spp_dets[datetime >= nadir &
+                                       datetime < solarNoon, ]
+      if (nrow(first_onset) != 0) {
+        # store the earliest detection by station_date
+        first_onset[, min_time_det := min(datetime), .(station_date)]
+        first_onset[, first_onset := int_length(interval(sunrise, min_time_det)) /
+                      60, .(station_date)]
+        first_onset <- first_onset[!duplicated(station_date), .(first_onset, station_date, station_id, date)]
+        setkey(first_onset, station_date)
+        first_onset[, category := "first_onset"]
+        setnames(first_onset, old = 'first_onset', new = 'value')
+      } else{
+        first_onset <- data.table(
+          value = NA,
+          station_date = NA,
+          station_id = NA,
+          date = NA,
+          category = "first_onset"
+        )
+      }
+      
+      # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
+      #Morning median: time of 50% detection - local sunrise ####
+      # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
+      # median activity
+      med_voc <- single_spp_dets[datetime >= nadir &
+                                   datetime < solarNoon, ]
+      if (nrow(med_voc) != 0) {
+        med_voc[, med_voc := quantile(datetime, probs = 0.5), .(station_date)]
+        med_voc <- med_voc[, .(med_voc = int_length(interval(sunrise, med_voc)) / 60,
+                               station_id = station_id,
+                               date = date), .(station_date)]
+        med_voc <- med_voc[!duplicated(station_date), .(med_voc, station_date, station_id, date)]
+        setkey(med_voc, station_date)
+        med_voc[, category := "median_dawn"]
+        setnames(med_voc, old = 'med_voc', new = 'value')
+      } else{
+        med_voc <- data.table(
+          value = NA,
+          station_date = NA,
+          station_id = NA,
+          date = NA,
+          category = "median_dawn"
+        )
+      }
+      
+      
+      # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
+      #Evening cessation: time of last detection - local sunset ####
+      # --- # --- # --- # --- # --- # --- # --- # --- # --- # ---
+      
+      ev_ces <- single_spp_dets[datetime >= solarNoon &
+                                  datetime < nadir2, ]
+      if (nrow(ev_ces) != 0) {
+        ev_ces[, max_time_det := max(datetime), by = station_date]
+        ev_ces[, ev_ces := int_length(interval(sunset, max_time_det)) /
+                 60, by = station_date]
+        ev_ces <- ev_ces[!duplicated(station_date), .(ev_ces, station_date, station_id, date)]
+        setkey(ev_ces, station_date)
+        ev_ces[, category := "ev_ces"]
+        setnames(ev_ces, old = 'ev_ces', new = 'value')
+      } else{
+        ev_ces = data.table(
+          value = NA,
+          station_date = NA,
+          station_id = NA,
+          date = NA,
+          category = "ev_ces"
+        )
+      }
+      
+      
+      # bring together individual calculations
+      out <- rbindlist(l = list(first_onset, med_voc, ev_ces))
+      out <- out[!is.na(station_date), ] # throw out measures we couldn't calculate
+      if (nrow(out) == 0) {
+        next
+      }
+      out[, common_name := f, ] #add species name to out
+      setkey(out, station_date)
+      out <- merge(out, single_spp_dets[!duplicated(station_date), .(
+        scientific_name,
+        datetime,
+        date,
+        week,
+        latitude,
+        longitude,
+        station_id,
+        station_date
+      )], by = c("station_date", "station_id", "date"))
+      # drop station_date integer key — station_id is retained in output
+      out <- out[, !("station_date"), with = FALSE]
+      species_holder[[species_counter]] <- out
+      
+    } #species
+    species_holder <- rbindlist(species_holder)
+    # make sure directory exists
+    ifelse(!dir.exists(file.path(
+      here('data/L0/activity_measures/diurnal')
+    )), dir.create(file.path(
+      here('data/L0/activity_measures/diurnal')
+    )), FALSE)
+    # write file to directory
+    fwrite(
+      species_holder,
+      file = paste0(
+        here('data/L0/activity_measures/diurnal'),
+        "/activity_measures_",
         c,
+        "_",
         this_month,
-        "confidence_cutoff",
+        "_conf_" ,
         confidence_cutoff,
-        "detection_filter",
+        "_det_",
         detection_filter,
-        'completed',
-        'at',
-        as.character(Sys.time()),
-        "\n\n"
+        ".csv"
       )
-      
+    )
+    
+    
+    cat(
+      '\n\n',
+      c,
+      this_month,
+      "confidence_cutoff",
+      confidence_cutoff,
+      "detection_filter",
+      detection_filter,
+      'completed',
+      'at',
+      as.character(Sys.time()),
+      "\n\n"
+    )
+    
     
   } #months
   
