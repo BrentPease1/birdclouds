@@ -170,16 +170,25 @@ Elevation data is returned in meters.
 
 ### **final_diurnal.RData**
 
-[**final_diurnal.RData**](https://saluki.sharepoint.com/:f:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA?csf=1&web=1&e=RMAs1a)
-is the final dataset used for diurnal modelling analyses. The dataset contains 30 columns.
+*Updated version 04/27/2026* Rather than having one big dataset with all the values for `first_onset` and `ev_ces`, we split the diurnal dataset into two datasets. Both datasets contain nearly all the same columns described below, with the exception that one dataset only has the `first_onset` column and the other only has the `ev_ces` column to differentiate data used for modelling. The `final_diurnal` dataset still exists, with `first_onset`, `ev_ces`, and `median_dawn` contained in a long-format in the columns `category` and `value`. 
 
-The diurnal dataset can be downloaded from the shared TEAMS folder:
-[`General/data_prep_pull/ANALYSIS_READY_DATA/final_diurnal.RData`](https://saluki.sharepoint.com/:f:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA?csf=1&web=1&e=RMAs1a)
+* [**final_diurnal_first_onset.RData**](https://saluki.sharepoint.com/:u:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA/final_diurnal_first_onset.RData?csf=1&web=1&e=fxFph4) - diurnal dataset for `first_onset` vocalizations
+* [**final_diurnal_ev_ces.RData**](https://saluki.sharepoint.com/:u:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA/final_diurnal_ev_ces.RData?csf=1&web=1&e=69RKEg) - diurnal dataset for `ev_ces` (evening cessation) vocalizations
+
+The diurnal datasets can be downloaded from the shared TEAMS folder:
+[`General/data_prep_pull/ANALYSIS_READY_DATA/...`](https://saluki.sharepoint.com/:f:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA?csf=1&web=1&e=e0JODb)
+
+
+[**final_diurnal.RData**](https://saluki.sharepoint.com/:u:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA/final_diurnal.RData?csf=1&web=1&e=V7p4qz)
+is the final dataset used for diurnal modelling analyses. The dataset contains 30 columns. This dataset includes `first_onset`, `ev_ces`, and `median_dawn` contained in a long-format in the columns `category` and `value`, rather than each metric having its own column as in **final_diurnal_first_onset.RData** and **final_diurnal_ev_ces.RData**
+
 
 Load the data into R with the dataframe object named as `final_diurnal`
 ```r
 your_directory <- "specify_file_path"
-load(here(your_directory, "final_diurnal.RData"))
+load(here(your_directory, "final_diurnal_first_onset.RData")) # Just first_onset data
+load(here(your_directory, "final_diurnal_ev_ces.RData")) # Just ev_ces data
+load(here(your_directory, "final_diurnal.RData")) # first_onset, median_dawn, and ev_ces data
 ```
 
 The names, descriptions, and data classes of each column are described below:
@@ -198,24 +207,25 @@ Column number | Column name | Description of column | Data class of column
 [10] | `month` | month of vocalization; extracted from [4] `date` | (integer)
 [11] | `avg_rad` | average radiance; unit = nW/cm^2/sr ([see VIIRS for more info)](#viirs-data)) | (double)
 [12] | `rad_cat` | category of radiance, classified has "low", "med", or "high" ([see VIIRS for more info](#viirs-data)) | (string)
-[13] | `sunrise` | date and time of sunrise on the [3] `date_time` of the vocalization in UTC timezone | (POSIXct)
-[14] | `sunset` | date and time of sunset on the [3] `date_time` of the vocalization in UTC timezone | (POSIXct)
-[15] | `first_onset` | [time of first vocalization detection minus time of local sunrise] | (double)
-[16] | `median_dawn` | [time of 50% vocalization detection minus time of local sunrise] | (double)
-[17] | `sunrise_cloud_cover_percent` | mean [cloud_cover (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[18] | `sunrise_cloud_cover_low_percent` | mean [cloud_cover_low (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[19] | `sunrise_cloud_cover_mid_percent` | mean [cloud_cover_mid (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[20] | `sunrise_cloud_cover_high_percent` | mean [cloud_cover_high (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[21] | `sunrise_precipitation_mm` | mean [precipitation (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[22] | `sunrise_rain_mm` | mean [rain (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[23] | `sunrise_snowfall_cm` | mean [snowfall (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
-[24] | `sunset_cloud_cover_percent` | mean [cloud_cover (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[25] | `sunset_cloud_cover_low_percent` | mean [cloud_cover_low (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[26] | `sunset_cloud_cover_mid_percent` | mean [cloud_cover_mid (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[27] | `sunset_cloud_cover_high_percent` | mean [cloud_cover_high (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[28] | `sunset_precipitation_mm` | mean [precipitation (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[29] | `sunset_rain_mm` | mean [rain (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
-[30] | `sunset_snowfall_cm` | mean [snowfall (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[13 - `first_onset` dataset] | `first_onset` | [time of first vocalization detection minus time of local sunrise] | (double)
+[X - only in `final_diurnal` dataset] | `median_dawn` | [time of 50% vocalization detection minus time of local sunrise] | (double)
+[13 - `ev_ces` dataset] | `ev_ces` | [time of last detection minus time of local sunset] | (double) 
+[14] | `sunrise` | date and time of sunrise on the [3] `date_time` of the vocalization in UTC timezone | (POSIXct)
+[15] | `sunset` | date and time of sunset on the [3] `date_time` of the vocalization in UTC timezone | (POSIXct)
+[16] | `sunrise_cloud_cover_percent` | mean [cloud_cover (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[17] | `sunrise_cloud_cover_low_percent` | mean [cloud_cover_low (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[18] | `sunrise_cloud_cover_mid_percent` | mean [cloud_cover_mid (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[19] | `sunrise_cloud_cover_high_percent` | mean [cloud_cover_high (unit = %)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[20] | `sunrise_precipitation_mm` | mean [precipitation (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[21] | `sunrise_rain_mm` | mean [rain (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[22] | `sunrise_snowfall_cm` | mean [snowfall (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunrise (i.e., average weather for 1hr before sunrise, sunrise, and 1 hr after sunrise) | (double)
+[23] | `sunset_cloud_cover_percent` | mean [cloud_cover (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[24] | `sunset_cloud_cover_low_percent` | mean [cloud_cover_low (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[25] | `sunset_cloud_cover_mid_percent` | mean [cloud_cover_mid (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[26] | `sunset_cloud_cover_high_percent` | mean [cloud_cover_high (unit = %)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[27] | `sunset_precipitation_mm` | mean [precipitation (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[28] | `sunset_rain_mm` | mean [rain (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
+[29] | `sunset_snowfall_cm` | mean [snowfall (unit = millimeters)](#weather-data) summarized for a 3-hr window around sunset (i.e., average weather for 1hr before sunset, sunset, and 1 hr after sunset) | (double)
 
 
 ### **final_nocturnal.RData**
