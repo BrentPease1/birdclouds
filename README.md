@@ -47,7 +47,7 @@ repo for bird cloud GILBERT X PEASE manuscript
 #### [data/L0](data/L0)
 
 * [stations_mar2026.csv](data/L0/stations_mar2026.csv) List of BirdWeather stations extracted from the raw BirdWeather data for the study period. Each station was assigned a unique ID number (station_id), and the list also contains the longitude and latitude coordinates of each station.
-* [This is a placeholder]
+* [MODCF_mean.tif](https://www.earthenv.org/cloud) Mean annual cloud cover dataset from [Wilson & Jetz (2016)](https://doi.org/10.1371/journal.pbio.1002415).
 * [This is a placeholder]
 
 
