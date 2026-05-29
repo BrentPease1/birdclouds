@@ -40,10 +40,10 @@ cloud_clipped <- mask(cloud_clipped, world_land)
 ggplot() +
   # Plot the clipped cloud cover raster
   geom_spatraster(data = cloud_clipped) +
-  scale_fill_distiller(
+  scale_fill_gradient(
     name = "Cloud Cover (%)",
-    palette = "Greys", # Grey gradient for cloud cover # or Blues # or Greys
-    direction = 1, # 1 = light to dark; change to -1 for dark to light
+    low = "#b4b4b4",
+    high = "#252525",
     na.value = "transparent",
     guide = guide_colorbar(
       title.position = "top",
@@ -63,7 +63,7 @@ ggplot() +
   ) +
   scale_color_manual(
     name = NULL,
-    values = c("BirdWeather Stations" = "#9dd3ad"), # station color #9dd3ad #c35735
+    values = c("BirdWeather Stations" = "#c35735"), # station color #9dd3ad #c35735
     guide = guide_legend(
       direction = "horizontal",
       title.position = "top",
@@ -76,7 +76,7 @@ ggplot() +
   theme_minimal() +
   theme(
     # Set the ocean background color
-    panel.background = element_rect(fill = "#abd0e3", color = NA), # or grey #cfcfcf or blue #abd0e3
+    panel.background = element_rect(fill = "#cbcbcb", color = NA), # or grey #cfcfcf or blue #abd0e3
     panel.grid = element_blank(), # Removes the background lat/lon grid lines
 
     # Remove other graph stuff
