@@ -39,3 +39,23 @@ data/L0/activity_measures
 # dumb file
 questionable_all.csv
 
+data/302_evaluate_stations/302a_diurn_on_data.rds
+data/302_evaluate_stations/302b_diurn_ev_data.rds
+data/303_grid_cells/303a_diurn_on_final_05.rds
+data/303_grid_cells/303b_diurn_ev_final_05.rds
+data/304_final_data/304_diurn_on_final_05_no_filter.rds
+data/304_final_data/304a_diurn_on_final_05.rds
+data/304_final_data/304b_diurn_ev_final_05.rds
+data/305_models/305_mod_ev_alan.rds
+data/305_models/305_mod_on_alan.rds
+data/305_models/305a_mod_on_05.rds
+data/305_models/305b_mod_ev_05.rds
+data/305_models/model_summary_20det.txt
+data/305_models/model_summary_100det.txt
+data/L2/activity_measures_diurnal.RData
+data/L2/final_diurnal_ev_ces.RData
+data/L2/final_diurnal_first_onset.RData
+data/L2/stations_with_VIIRS_2026_03_06.RData
+data/L2/summarized_weather_data_diurnal.RData
+data/301_elton_traits/301a_diurn_on_data.rds
+data/301_elton_traits/301b_diurn_ev_data.rds
