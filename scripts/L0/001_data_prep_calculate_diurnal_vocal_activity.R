@@ -55,7 +55,7 @@ overwrite <- T
 
 
 confidence_cutoff <- c(0.75)
-detection_filter <- c(20)
+detection_filter <- c(100)
 continents <- c(
   "Africa",
   "Asia",
@@ -107,8 +107,8 @@ results_list <- list(list())
 results_list_continent <- list(list())
 
 # debugging helpers
-c = 'Europe'
-m = 4
+c <- 'Europe'
+m <- 4
 
 for (c in continents) {
   print(c)
@@ -255,9 +255,9 @@ for (c in continents) {
     focal_spp <- sort(focal_spp)
 
     species_holder <- list()
-    species_counter = 0
+    species_counter <- 0
     for (f in focal_spp) {
-      species_counter = species_counter + 1
+      species_counter <- species_counter + 1
       single_spp_dets <- bw[common_name == f, ]
 
       # grab sunset and sunrise time
@@ -384,7 +384,7 @@ for (c in continents) {
         ev_ces[, category := "ev_ces"]
         setnames(ev_ces, old = 'ev_ces', new = 'value')
       } else {
-        ev_ces = data.table(
+        ev_ces <- data.table(
           value = NA,
           station_id = NA,
           date = NA,
