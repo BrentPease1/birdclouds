@@ -180,3 +180,6 @@ data/L3/306_fig3/306a_pred_on.rds
 data/L3/306_fig3/306b_pred_ev.rds
 data/L3/306_fig3/306c_pred_noc.rds
 data/L2/final_nocturnal.RData
+scripts/L3/305a_model_diurnal.R
+data/L3/305_models/305c_mod_on_50_RESULTS.txt
+data/L3/305_models/305d_mod_ev_50_RESULTS.txt

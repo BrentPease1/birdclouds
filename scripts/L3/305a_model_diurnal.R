@@ -238,6 +238,11 @@ summary(mod_on_50)
 summary(mod_ev_50)
 summary(mod_on_50_no_filter)
 
-### top models
+### top selected models
+
 summary(mod_on_50)
 summary(mod_ev_50)
+
+##load models
+# mod_on_50 <- readRDS(here(dir_305_models, "305c_mod_on_50.rds"))
+# mod_ev_50 <- readRDS(here(dir_305_models, "305d_mod_ev_50.rds"))
