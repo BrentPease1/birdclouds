@@ -1,0 +1,17 @@
+species_id,common_name,scientific_name,common_name_bw,family,common_name_el,nocturnal,activity_period
+22,Cirl Bunting,Emberiza cirlus,,Emberizidae,Cirl Bunting,0,diurnal
+303,European Stonechat,Saxicola rubicola,,Muscicapidae,European Stonechat,0,diurnal
+13835,Greater Whitethroat,Curruca communis,,Sylviidae,Greater Whitethroat,0,diurnal
+34,Hooded Crow,Corvus cornix,,Corvidae,Hooded Crow,0,diurnal
+113,Yellowhammer,Emberiza citrinella,,Emberizidae,Yellowhammer,0,diurnal
+1274,Tundra Bean-Goose,Anser serrirostris,,Anatidae,Tundra Bean-Goose,0,diurnal
+889,Eastern Screech-Owl,Megascops asio,,Strigidae,Eastern Screech-Owl,1,nocturnal
+1297,Eastern Whip-poor-will,Antrostomus vociferus,,Caprimulgidae,Eastern Whip-poor-will,1,nocturnal
+2037,Northern Shrike,Lanius borealis,,Laniidae,Northern Shrike,0,diurnal
+664,Pacific Wren,Troglodytes pacificus,,Troglodytidae,Pacific Wren,0,diurnal
+1847,Wilson's Snipe,Gallinago delicata,,Scolopacidae,Wilson's Snipe,0,diurnal
+852,Yellow-crowned Night-Heron,Nyctanassa violacea,,Ardeidae,Yellow-crowned Night-Heron,0,diurnal
+1051,Australasian Swamphen,Porphyrio melanotus,,Rallidae,Australasian Swamphen,0,diurnal
+362,Gray Fantail,Rhipidura albiscapa,,Rhipiduridae,Gray Fantail,0,diurnal
+727,Woodhouse's Scrub-Jay,Aphelocoma woodhouseii,,Corvidae,Woodhouse's Scrub-Jay,0,diurnal
+154,Common Gallinule,Gallinula galeata,,Rallidae,Common Gallinule,0,diurnal

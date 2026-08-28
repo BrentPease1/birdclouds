@@ -1,0 +1,192 @@
+---
+title: 308_summary_stats.qmd
+author: 
+    - name: Karina Torres
+      role: Author
+      affiliation: Southern Illinois University
+      url: github.com/KTorres23
+toc: true
+format:
+  html:
+    embed-resources: false
+    cache: false
+abstract: This script puts together some basic summary statistics of the final data used for modelling.
+date: 2026-07-31 # last modified
+date-format: "yyyy-MM-dd"
+---
+
+nocturnal data is unchanged
+
+```{r}
+#| label: setup-env
+pacman::p_load(data.table, tidyverse, here, glmmTMB)
+
+here::i_am("scripts/L3/308_summary_stats.qmd")
+```
+
+# Read data
+
+
+```{r}
+#| label: read-data
+dir_304_final_data <- here("data", "L3", "304_final_data")
+dir_308_check <- here("data", "L3", "308_precip_check")
+
+diurn_on_50 <- readRDS(here(dir_304_final_data, "304d_diurn_on_final_50.rds"))
+diurn_ev_50 <- readRDS(here(dir_304_final_data, "304e_diurn_ev_final_50.rds"))
+noc_50 <- readRDS(here(dir_304_final_data, "304f_noc_final_50.rds"))
+```
+
+
+
+# unfiltered data
+
+```{r}
+#| label: raw-data
+# Total vocs before downstream filtering
+
+## onset
+load(here("data", "L2", "final_diurnal_first_onset.RData"))
+nrow(final_diurnal_first_onset) # 9,577,620 #### 977,256
+
+## ev cessation
+load(here("data", "L2", "final_diurnal_ev_ces.RData"))
+nrow(final_diurnal_ev_ces) # 7,187,860 #### 375,886
+
+# ncotrnal
+load(here("data", "L2", "final_nocturnal.RData"))
+nrow(final_nocturnal |> filter(det == 1)) # 3,697,109
+
+
+### Grab continents/countries
+pacman::p_load(sf, rnaturalearth)
+
+on_coords <- final_diurnal_first_onset |>
+  distinct(station_id, latitude, longitude)
+ev_coords <- final_diurnal_ev_ces |> distinct(station_id, latitude, longitude)
+noc_coords <- final_nocturnal |> distinct(station_id, latitude, longitude)
+
+all_coords <- rbind(on_coords, ev_coords, noc_coords) |>
+  distinct(station_id, latitude, longitude)
+
+coords_sf <- st_as_sf(
+  all_coords,
+  coords = c("longitude", "latitude"),
+  crs = 4326
+)
+# Lay over a map of countries to extract # of countries
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Spatial join stations with country polygons
+stations_with_geo <- st_join(coords_sf, world |> select(admin, continent))
+
+# Count total countries and continents
+geo_summary <- stations_with_geo |>
+  st_drop_geometry() |>
+  summarize(
+    total_stations = n_distinct(station_id), # 6,436 stations #### 6,451
+    total_countries = n_distinct(admin, na.rm = TRUE), # 87 countries #### 88 counties
+    total_continents = n_distinct(continent, na.rm = TRUE) # 6 continents #### 6 continents
+  )
+
+print(geo_summary)
+```
+
+# final model data
+
+```{r}
+#| label: total-vocs
+### Total vocs
+# Total number of vocs used in diurnal model
+nrow(diurn_on_50) # 6,712,067 #### 687,906
+nrow(diurn_ev_50) # 5,030,446 #### 272,329
+# Total number of presences used in nocturnal model
+nrow(noc_50 |> filter(det == 1)) # 147,576
+```
+
+```{r}
+#| label: unique-taxa
+### Unique species
+on_sp <- diurn_on_50 |> distinct(species_id)
+ev_sp <- diurn_ev_50 |> distinct(species_id)
+noc_50 |> distinct(species_id) |> count() # 24 nocturnal species
+rbind(on_sp, ev_sp) |> distinct(species_id) |> count() # 465 diurnal species #### 441
+
+### Unique families
+on_fam <- diurn_on_50 |> distinct(family)
+ev_fam <- diurn_ev_50 |> distinct(family)
+noc_50 |> distinct(family) |> count() # 5 nocturnal families
+rbind(on_fam, on_fam) |> distinct(family) |> count() # 63 diurnal families
+```
+
+
+```{r}
+#| label: summary-vocs
+### Mean/median vocs
+diurn_on_50 |>
+  group_by(family) |>
+  summarize(vocs_fam = n()) |>
+  ungroup() |>
+  summarize(
+    mean_vocs_fam = mean(vocs_fam),
+    sd_vocs_fam = sd(vocs_fam),
+    median_vocs_fam = median(vocs_fam)
+  )
+
+diurn_ev_50 |>
+  group_by(family) |>
+  summarize(vocs_fam = n()) |>
+  ungroup() |>
+  summarize(
+    mean_vocs_fam = mean(vocs_fam),
+    sd_vocs_fam = sd(vocs_fam),
+    median_vocs_fam = median(vocs_fam)
+  )
+
+noc_50 |>
+  filter(det == 1) |>
+  group_by(species_id) |>
+  summarize(vocs_sp = n()) |>
+  ungroup() |>
+  summarize(
+    mean_vocs_sp = mean(vocs_sp),
+    sd_vocs_sp = sd(vocs_sp),
+    median_vocs_sp = median(vocs_sp)
+  )
+```
+
+
+```{r}
+#| label: unique-areas
+### Grab continents/countries
+pacman::p_load(sf, rnaturalearth)
+
+on_coords <- diurn_on_50 |> distinct(station_id, latitude, longitude)
+ev_coords <- diurn_ev_50 |> distinct(station_id, latitude, longitude)
+noc_coords <- noc_50 |> distinct(station_id, latitude, longitude)
+
+all_coords <- rbind(on_coords, ev_coords, noc_coords) |>
+  distinct(station_id, latitude, longitude)
+
+coords_sf <- st_as_sf(
+  all_coords,
+  coords = c("longitude", "latitude"),
+  crs = 4326
+)
+# Lay over a map of countries to extract # of countries
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Spatial join stations with country polygons
+stations_with_geo <- st_join(coords_sf, world |> select(admin, continent))
+
+# Count total countries and continents
+geo_summary <- stations_with_geo |>
+  st_drop_geometry() |>
+  summarize(
+    total_stations = n_distinct(station_id), # 5,266 stations #### 5,564
+    total_countries = n_distinct(admin, na.rm = TRUE), # 56 countries ### 57
+    total_continents = n_distinct(continent, na.rm = TRUE) # 6 continents
+  )
+
+print(geo_summary)
+```

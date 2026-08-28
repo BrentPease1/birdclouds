@@ -1,0 +1,1138 @@
+---
+title: 307_visualize_select_fig4.qmd
+author: 
+    - name: Karina Torres
+      role: Author
+      affiliation: Southern Illinois University
+      url: github.com/KTorres23
+toc: true
+format:
+  html:
+    embed-resources: false
+    cache: false
+abstract: This script visualizes the coefficients of responses to ALAN across all families/species and selected families/species
+date: 2026-07-25 # last modified
+date-format: "yyyy-MM-dd"
+---
+
+
+**Vision**
+
+* Panel A: Dot plot showing onset/cessation coefficients for the family-level RDM ALAN slope
+  * Y axis Family name 
+  * X axis is the value of the coefficient
+  * Size of dots is the # of vocs in that family
+* Panel B: dot plot? showing nocturnal coefficient for rdm ALAN nonlinear slope? interaction
+  * Y axis = species name
+  * X axis is value of Coefficient
+  * Size dots = # vocs
+* Panel C: Response line graphs of selected onset/cess coefficients for the family-levle RDM ALAN slope
+  * Top panel shows 3 graphs with onset lines
+  * Bottom panel shows 3 graphs with cess lines
+  * Leftmost 2 graphs should be expected relationship (e.g., cardinal family -likely high data group)
+  * Middle graph should be neutral relationship
+  * Right graph should be opposite expected relationship (e.g., vultures? -likely low data group)
+
+
+# setup env
+
+```{r}
+#| label: setup-env
+pacman::p_load(data.table, tidyverse, here, glmmTMB, patchwork, MetBrewer)
+
+here::i_am("scripts/L3/307_visualize_select_fig4.qmd")
+```
+
+# read data
+
+
+```{r}
+#| label: read-data
+dir_304_final_data <- here("data", "L3", "304_final_data")
+dir_305_models <- here("data", "L3", "305_models")
+dir_307_fig4 <- here("data", "L3", "307_fig4")
+
+## Occurrence data:
+diurn_on <- readRDS(here(dir_304_final_data, "304d_diurn_on_final_50.rds"))
+diurn_ev <- readRDS(here(dir_304_final_data, "304e_diurn_ev_final_50.rds"))
+noc <- readRDS(here(dir_304_final_data, "304f_noc_final_50.rds"))
+
+
+## log transform and scale:
+diurn_on$alan_sc <- scale(log1p(diurn_on$avg_rad))
+diurn_on$cld_sc <- scale(diurn_on$sunrise_cloud_cover_percent)
+diurn_on$family <- as.factor(diurn_on$family)
+diurn_on$precip_sc <- scale(diurn_on$sunrise_precipitation_mm)
+
+diurn_ev$alan_sc <- scale(log1p(diurn_ev$avg_rad))
+diurn_ev$cld_sc <- scale(diurn_ev$sunset_cloud_cover_percent)
+diurn_ev$family <- as.factor(diurn_ev$family)
+diurn_ev$precip_sc <- scale(diurn_ev$sunset_precipitation_mm)
+
+noc$alan_sc <- scale(log1p(noc$avg_rad))
+noc$cloud_sc <- scale(noc$nightly_cloud_cover_percent)
+noc$family <- as.factor(noc$family)
+noc$precip_sc <- scale(noc$nightly_precipitation_mm)
+
+## Calculate scaled 0 mm precip:
+precip_0_on <- (0 - attr(diurn_on$precip_sc, "scaled:center")) /
+  attr(diurn_on$precip_sc, "scaled:scale")
+precip_0_ev <- (0 - attr(diurn_ev$precip_sc, "scaled:center")) /
+  attr(diurn_ev$precip_sc, "scaled:scale")
+precip_0_noc <- (0 - attr(noc$precip_sc, "scaled:center")) /
+  attr(noc$precip_sc, "scaled:scale")
+
+## Model objects:
+m_on <- readRDS(here(dir_305_models, "305c_mod_on_50.rds"))
+m_ev <- readRDS(here(dir_305_models, "305d_mod_ev_50.rds"))
+m_noc <- readRDS(here(dir_305_models, "305j_mod_noc_50.rds"))
+```
+
+```{r}
+#| label: palette
+color_palette <- c(
+  "Onset" = "#009E73",
+  "Cessation" = "#D55E00",
+  "Low" = "#2B5C8F", # Low Light pollution
+  "High" = "#E69F00", # High light
+  "Clouds" = "#8997af",
+  "No Clouds" = "#272526"
+)
+```
+
+# Prepare Prediction Data
+
+```{r}
+#| label: prep-onset-predictions
+# ==========================================
+# 1. DIURNAL ONSET (Family-Level Variability)
+# ==========================================
+
+alan_seq_on <- seq(
+  min(diurn_on$alan_sc, na.rm = TRUE),
+  max(diurn_on$alan_sc, na.rm = TRUE),
+  length.out = 200
+)
+
+cloud_vals_on <- c(
+  min(diurn_on$cld_sc, na.rm = TRUE),
+  max(diurn_on$cld_sc, na.rm = TRUE)
+)
+
+pred_fam_on <- expand.grid(
+  alan_sc = alan_seq_on,
+  cld_sc = cloud_vals_on,
+  precip_sc = precip_0_on,
+  family = unique(diurn_on$family),
+  sp_grid_wk = unique(diurn_on$sp_grid_wk)[1]
+)
+
+pred_fam_on$family <- factor(
+  pred_fam_on$family,
+  levels = unique(diurn_on$family)
+)
+pred_fam_on$sp_grid_wk <- factor(
+  pred_fam_on$sp_grid_wk,
+  levels = unique(diurn_on$sp_grid_wk)
+)
+
+# pred_on_raw <- predict(
+#   m_on,
+#   newdata = pred_fam_on,
+#   type = "link",
+#   re.form = NULL,
+#   allow.new.levels = TRUE,
+#   se.fit = TRUE
+# )
+
+### Save the prediction objects for later because they take a long time to predict
+#saveRDS(pred_on_raw, file = here(dir_307_fig4, "307a_pred_diurn_on.rds"))
+### Read in the prediction objects
+pred_on_raw <- readRDS(here(dir_307_fig4, "307a_pred_diurn_on.rds"))
+
+# Identity link (Gaussian) -> No back-transformation needed
+pred_fam_on$fit <- pred_on_raw$fit
+pred_fam_on$lwr <- pred_on_raw$fit - 1.96 * pred_on_raw$se.fit
+pred_fam_on$upr <- pred_on_raw$fit + 1.96 * pred_on_raw$se.fit
+
+pred_fam_on <- pred_fam_on |>
+  mutate(
+    cloud_cat = ifelse(cld_sc == min(cld_sc), "No Clouds", "Clouds"),
+    alan = alan_sc *
+      sd(diurn_on$alan, na.rm = TRUE) +
+      mean(diurn_on$alan, na.rm = TRUE)
+  )
+```
+
+
+```{r}
+#| label: prep-cess-predictions
+# ==========================================
+# 2. DIURNAL CESSATION (Family-Level Variability)
+# ==========================================
+
+alan_seq_ev <- seq(
+  min(diurn_ev$alan_sc, na.rm = TRUE),
+  max(diurn_ev$alan_sc, na.rm = TRUE),
+  length.out = 200
+)
+
+cloud_vals_ev <- c(
+  min(diurn_ev$cld_sc, na.rm = TRUE),
+  max(diurn_ev$cld_sc, na.rm = TRUE)
+)
+
+pred_fam_ev <- expand.grid(
+  alan_sc = alan_seq_ev,
+  cld_sc = cloud_vals_ev,
+  precip_sc = precip_0_ev,
+  family = unique(diurn_ev$family),
+  sp_grid_wk = unique(diurn_ev$sp_grid_wk)[1]
+)
+
+pred_fam_ev$family <- factor(
+  pred_fam_ev$family,
+  levels = unique(diurn_ev$family)
+)
+pred_fam_ev$sp_grid_wk <- factor(
+  pred_fam_ev$sp_grid_wk,
+  levels = unique(diurn_ev$sp_grid_wk)
+)
+
+# pred_ev_raw <- predict(
+#   m_ev,
+#   newdata = pred_fam_ev,
+#   type = "link",
+#   re.form = NULL,
+#   allow.new.levels = TRUE,
+#   se.fit = TRUE
+# )
+
+### Save the prediction objects for later because they take a long time to predict
+#saveRDS(pred_ev_raw, file = here(dir_307_fig4, "307b_pred_diurn_ev.rds"))
+### Read in the prediction objects
+pred_ev_raw <- readRDS(here(dir_307_fig4, "307b_pred_diurn_ev.rds"))
+
+# Identity link (Gaussian) -> No back-transformation needed
+pred_fam_ev$fit <- pred_ev_raw$fit
+pred_fam_ev$lwr <- pred_ev_raw$fit - 1.96 * pred_ev_raw$se.fit
+pred_fam_ev$upr <- pred_ev_raw$fit + 1.96 * pred_ev_raw$se.fit
+
+pred_fam_ev <- pred_fam_ev |>
+  mutate(
+    cloud_cat = ifelse(cld_sc == min(cld_sc), "No Clouds", "Clouds"),
+    alan = alan_sc *
+      sd(diurn_ev$alan, na.rm = TRUE) +
+      mean(diurn_ev$alan, na.rm = TRUE)
+  )
+```
+
+```{r}
+#| label: prep-noc-predictions
+# ==========================================
+# 3. FOR NOCTURNAL (Species-Level Variability)
+# ==========================================
+
+alan_seq_noc <- seq(
+  min(noc$alan_sc, na.rm = TRUE),
+  max(noc$alan_sc, na.rm = TRUE),
+  length.out = 200
+)
+
+cloud_vals_noc <- c(
+  min(noc$cloud_sc, na.rm = TRUE),
+  max(noc$cloud_sc, na.rm = TRUE)
+)
+
+pred_species <- expand.grid(
+  alan_sc = alan_seq_noc,
+  cloud_sc = cloud_vals_noc,
+  precip_sc = precip_0_noc,
+  common_name = unique(noc$common_name),
+  sp_grid_wk = unique(noc$sp_grid_wk)[1]
+)
+
+pred_species$common_name <- factor(
+  pred_species$common_name,
+  levels = unique(noc$common_name)
+)
+pred_species$sp_grid_wk <- factor(
+  pred_species$sp_grid_wk,
+  levels = unique(noc$sp_grid_wk)
+)
+
+# Predict
+# pred_noc_raw <- predict(
+#   m_noc,
+#   newdata = pred_species,
+#   type = "link",
+#   re.form = NULL,
+#   allow.new.levels = TRUE,
+#   se.fit = TRUE
+# )
+
+### Save the prediction objects for later because they take a long time to predict
+#saveRDS(pred_noc_raw, file = here(dir_307_fig4, "307c_pred_noc.rds"))
+### Read in the prediction objects
+pred_noc_raw <- readRDS(here(dir_307_fig4, "307c_pred_noc.rds"))
+
+pred_species$fit <- plogis(pred_noc_raw$fit)
+pred_species$lwr <- plogis(pred_noc_raw$fit - 1.96 * pred_noc_raw$se.fit)
+pred_species$upr <- plogis(pred_noc_raw$fit + 1.96 * pred_noc_raw$se.fit)
+
+pred_species <- pred_species |>
+  mutate(
+    cloud_cat = ifelse(cloud_sc == min(cloud_sc), "No Clouds", "Clouds"),
+    alan = alan_sc * sd(noc$alan, na.rm = TRUE) + mean(noc$alan, na.rm = TRUE)
+  )
+```
+
+# Script 307 - Visualize All Variability
+
+```{r}
+#| label: viz-all-onset-fam-var
+plot_diurn_on <- ggplot(
+  pred_fam_on,
+  aes(x = alan, y = fit, color = cloud_cat, fill = cloud_cat)
+) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.2, color = NA) +
+  #facet_wrap(~family, scales = "free_y") + # uncomment for freey
+  facet_wrap(~family) + # comment for freey
+  scale_color_manual(values = color_palette) +
+  scale_fill_manual(values = color_palette) +
+  coord_cartesian(ylim = c(-4.0, 4.0)) + # comment for freey
+  labs(
+    title = "Diurnal Onset - Family Variability",
+    x = "Light Pollution",
+    y = "Vocal Onset\n(hours relative to sunrise)",
+    color = "Cloud cover",
+    fill = "Cloud cover"
+  ) +
+  theme_classic(base_size = 18) +
+  theme(
+    legend.position = "bottom"
+  )
+
+
+ggsave(
+  plot_diurn_on,
+  filename = here(dir_307_fig4, "307_Fig4a.png"),
+  #filename = here(dir_307_fig4, "307_Fig4a_freey.png"),
+  device = "png",
+  height = 12,
+  width = 16,
+  units = "in",
+  dpi = 600
+)
+```
+
+```{r}
+#| label: viz-all-cess-fam-var
+plot_diurn_ev <- ggplot(
+  pred_fam_ev,
+  aes(x = alan, y = fit, color = cloud_cat, fill = cloud_cat)
+) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.2, color = NA) +
+  #facet_wrap(~family, scales = "free_y") + # uncomment for freey
+  facet_wrap(~family) + # comment for freey
+  scale_color_manual(values = color_palette) +
+  scale_fill_manual(values = color_palette) +
+  coord_cartesian(ylim = c(-4.0, 4.0)) + # comment for freey
+  labs(
+    title = "Diurnal Cessation - Family Variability",
+    x = "Light Pollution",
+    y = "Vocal Cessation\n(hours relative to sunset)",
+    color = "Cloud cover",
+    fill = "Cloud cover"
+  ) +
+  theme_classic(base_size = 18) +
+  theme(
+    legend.position = "bottom"
+  )
+
+
+ggsave(
+  plot_diurn_ev,
+  filename = here(dir_307_fig4, "307_Fig4b.png"),
+  #filename = here(dir_307_fig4, "307_Fig4b_freey.png"),
+  device = "png",
+  height = 12,
+  width = 16,
+  units = "in",
+  dpi = 600
+)
+```
+
+
+```{r}
+#| label: viz-all-noc-spp-var
+plot_noc_sp <- ggplot(
+  pred_species,
+  aes(x = alan, y = fit, color = cloud_cat, fill = cloud_cat)
+) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.2, color = NA) +
+  facet_wrap(~common_name) +
+  scale_color_manual(values = color_palette) +
+  scale_fill_manual(values = color_palette) +
+  labs(
+    title = "Nocturnal - All Species Variability",
+    x = "Light Pollution",
+    y = "Probability of Vocalization",
+    color = "Cloud cover",
+    fill = "Cloud cover"
+  ) +
+  theme_classic(base_size = 18) +
+  theme(
+    legend.position = "bottom"
+  )
+
+
+ggsave(
+  plot_noc_sp,
+  filename = here(dir_307_fig4, "307_Fig4c.png"),
+  device = "png",
+  height = 12,
+  width = 16,
+  units = "in",
+  dpi = 600
+)
+```
+
+# Script 307 Extract Coefficients
+
+```{r}
+#| label: fx-extract-alan-coefs
+extract_alan_coefficients <- function(model_obj, model_name) {
+  # Get global fixed effect for ALAN
+  fixed_effects <- fixef(model_obj)$cond
+  alan_fixed <- fixed_effects["alan_sc"]
+
+  # Get the random effect deviations for each family
+  random_effects <- ranef(model_obj)$cond$family
+
+  # Calculate total family-level beta coefficient
+  coef_table <- random_effects |>
+    rownames_to_column(var = "family") |>
+    rename(random_deviation = alan_sc) |>
+    mutate(
+      model = model_name,
+      fixed_baseline = alan_fixed,
+      total_alan_beta = fixed_baseline + random_deviation
+    ) |>
+    select(model, family, fixed_baseline, random_deviation, total_alan_beta)
+
+  return(coef_table)
+}
+```
+
+```{r}
+#| label: create-coef-md-table
+# Extract for both diurnal models
+coef_on <- extract_alan_coefficients(m_on, "on")
+coef_ev <- extract_alan_coefficients(m_ev, "ev")
+
+# Grab number of vocs data for each family
+fam_num_on <- diurn_on |>
+  group_by(family) |>
+  summarize(num_vocs_on = n(), .groups = "drop")
+
+fam_num_ev <- diurn_ev |>
+  group_by(family) |>
+  summarize(num_vocs_ev = n(), .groups = "drop")
+
+
+# Combine into a single master data frame
+alan_beta_table <- bind_rows(coef_on, coef_ev)
+print(alan_beta_table)
+
+
+alan_beta_wide <- alan_beta_table |>
+  select(family, model, total_alan_beta) |>
+  # Pivot from long to wide format
+  pivot_wider(
+    names_from = model,
+    values_from = total_alan_beta,
+    names_prefix = "total_alan_beta_"
+  ) |>
+  left_join(fam_num_on, by = "family") |>
+  left_join(fam_num_ev, by = "family")
+print(alan_beta_wide, n = 63)
+
+kable(
+  alan_beta_wide,
+  digits = 3,
+  format = "markdown",
+  col.names = c(
+    "Family",
+    "Total Beta (Onset)",
+    "Total Beta (Cess)",
+    "Num. Vocs (Onset)",
+    "Num. Vocs (Cess)"
+  )
+)
+```
+
+
+# Selected Figure 4 Panels
+
+```{r}
+#| label: data-prep
+# --- Extract Diurnal Family Coefficients (Onset & Cessation)
+coef_on <- extract_alan_coefficients(m_on, "Onset")
+coef_ev <- extract_alan_coefficients(m_ev, "Cessation")
+
+# Get sample size per family (vocs count)
+fam_num_on <- diurn_on |>
+  group_by(family) |>
+  summarize(n_vocs_on = n(), .groups = "drop")
+
+fam_num_ev <- diurn_ev |>
+  group_by(family) |>
+  summarize(n_vocs_ev = n(), .groups = "drop")
+
+# Combine diurnal coefficients for Panel A
+coef_panel_a <- bind_rows(coef_on, coef_ev) |>
+  left_join(fam_num_on, by = "family") |>
+  left_join(fam_num_ev, by = "family") |>
+  mutate(
+    n_vocs = ifelse(model == "Onset", n_vocs_on, n_vocs_ev)
+  )
+
+# --- Extract Nocturnal Species Coefficients
+# Define Dark (5th percentile) and Bright (95th percentile) ALAN values
+alan_low <- quantile(noc$alan_sc, probs = 0.05, na.rm = TRUE)
+alan_high <- quantile(noc$alan_sc, probs = 0.95, na.rm = TRUE)
+
+# Build grid for predictions (hold cloud_sc at 0 = mean cloud cover)
+grid_noc <- expand.grid(
+  alan_sc = c(alan_low, alan_high),
+  cloud_sc = 0, # Mean cloud cover baseline
+  precip_sc = precip_0_noc,
+  common_name = unique(noc$common_name),
+  sp_grid_wk = unique(noc$sp_grid_wk)[1]
+)
+
+# Predict link scale (log-odds) and transform to probability (0-1)
+preds_noc_raw <- predict(
+  m_noc,
+  newdata = grid_noc,
+  type = "link",
+  re.form = NULL,
+  allow.new.levels = TRUE
+)
+
+grid_noc <- grid_noc |>
+  mutate(
+    prob_det = plogis(preds_noc_raw),
+    light_condition = ifelse(
+      alan_sc == alan_low,
+      "Low",
+      "High"
+    )
+  )
+
+# Noc species vocalization count
+sp_num_noc <- noc |>
+  group_by(common_name) |>
+  summarize(n_vocs = n(), .groups = "drop")
+```
+
+```{r}
+#| label: create-panel-A
+# Panel A: Family-level ALAN Slopes (Ordered by Onset Coefficients)
+
+# Create wide format table and arrange families by Onset coefficient
+family_order_on <- coef_panel_a |>
+  select(family, model, total_alan_beta) |>
+  pivot_wider(names_from = model, values_from = total_alan_beta) |>
+  arrange(Onset)
+
+# Apply ordered factor sequence back to main data
+coef_panel_a_on <- coef_panel_a |>
+  mutate(
+    family = factor(family, levels = family_order_on$family)
+  )
+
+coef_panel_a_on_wide <- family_order_on |>
+  mutate(family = factor(family, levels = family_order_on$family))
+
+# Create numeric Y-index for background row shading
+n_fams <- nrow(family_order_on)
+zebra_df <- data.frame(
+  ymin = seq(0.5, n_fams - 0.5, by = 2),
+  ymax = seq(1.5, n_fams + 0.5, by = 2)
+)
+
+# Create Panel A
+plot_panel_a <- ggplot() +
+  # Row shading
+  geom_rect(
+    data = zebra_df,
+    aes(xmin = -Inf, xmax = Inf, ymin = ymin, ymax = ymax),
+    fill = "grey96",
+    color = NA
+  ) +
+  # Zero reference line
+  geom_vline(
+    xintercept = 0,
+    linetype = "dashed",
+    color = "grey60",
+    alpha = 0.7
+  ) +
+  # Dumbbell segment connecting Onset and Cessation
+  geom_segment(
+    data = coef_panel_a_on_wide,
+    aes(y = family, yend = family, x = Onset, xend = Cessation),
+    color = "grey70",
+    linewidth = 0.5,
+    na.rm = TRUE
+  ) +
+  # Coefficient dots
+  geom_point(
+    data = coef_panel_a_on,
+    aes(x = total_alan_beta, y = family, color = model, size = n_vocs),
+    alpha = 0.85
+  ) +
+  scale_color_manual(values = color_palette) +
+  #scale_fill_manual(values = color_palette) +
+  labs(
+    title = "A) Diurnal Family-Level\nLight Pollution Slopes",
+    x = expression(beta ~ "Coefficient (Light Pollution Response)"),
+    y = "Family",
+    color = "Response"
+  ) +
+  # Continuous size scale
+  scale_size(
+    range = c(1, 5),
+    name = "Number of\nVocalizations",
+    breaks = c(1000, 5000, 15000, 50000),
+    labels = scales::label_comma()
+  ) +
+  theme_classic(base_size = 16) +
+  theme(
+    legend.position = "right",
+    axis.text.y = element_text(size = 10, color = "black"),
+    panel.grid.major = element_blank()
+  )
+
+print(plot_panel_a)
+```
+
+
+"Predictions for nocturnal vocal detection probability were evaluated under dark (5th percentile ALAN) and bright (95th percentile ALAN) conditions at mean cloud cover."
+
+```{r}
+#| label: create-panel-B
+# Panel B: Dark vs Bright Light Pollution probabilities (Ordered by dark levels)
+
+# Setup data in long format
+coef_panel_b_long <- grid_noc |>
+  left_join(sp_num_noc, by = "common_name")
+
+# Setup data in wide format - order by dark conditions
+coef_panel_b_wide <- grid_noc |>
+  select(common_name, light_condition, prob_det) |>
+  pivot_wider(names_from = light_condition, values_from = prob_det) |>
+  rename(Dark = `Low`, Bright = `High`) |>
+  # Arrange species continuously from lowest detection in the dark to highest
+  arrange(Dark)
+
+# Re-level common_name factor
+coef_panel_b_long <- coef_panel_b_long |>
+  mutate(
+    common_name = factor(common_name, levels = coef_panel_b_wide$common_name)
+  )
+
+coef_panel_b_wide <- coef_panel_b_wide |>
+  mutate(
+    common_name = factor(common_name, levels = coef_panel_b_wide$common_name)
+  )
+
+# Setup background grey/white row shading
+n_species <- nrow(coef_panel_b_wide)
+zebra_df_b <- data.frame(
+  ymin = seq(0.5, n_species - 0.5, by = 2),
+  ymax = seq(1.5, n_species + 0.5, by = 2)
+)
+
+# Plot Panel B
+plot_panel_b <- ggplot() +
+  # Row shading
+  geom_rect(
+    data = zebra_df_b,
+    aes(xmin = -Inf, xmax = Inf, ymin = ymin, ymax = ymax),
+    fill = "grey96",
+    color = NA
+  ) +
+  # Dumbbell segment connecting Dark and Bright predictions
+  geom_segment(
+    data = coef_panel_b_wide,
+    aes(y = common_name, yend = common_name, x = Dark, xend = Bright),
+    color = "grey70",
+    linewidth = 0.5
+  ) +
+  # Detection probability points
+  geom_point(
+    data = coef_panel_b_long,
+    aes(x = prob_det, y = common_name, color = light_condition, size = n_vocs),
+    alpha = 0.85
+  ) +
+  # Colors for Light pollution levels
+  scale_color_manual(values = color_palette) +
+  # Scale size of dots
+  scale_size(
+    range = c(1, 7.5),
+    name = "Number of\nVocalizations",
+    breaks = c(1500, 10000, 35000, 100000),
+    labels = scales::label_comma()
+  ) +
+  # Format X-axis as clean %s
+  scale_x_continuous(
+    labels = scales::label_percent(accuracy = 1),
+    limits = c(0, 1)
+  ) +
+  labs(
+    title = "B) Nocturnal Species-Level\nPredicted Vocalization Probability",
+    x = "Probability of Vocalization",
+    y = "Species",
+    color = "Level of\nLight Pollution"
+  ) +
+  theme_classic(base_size = 18) +
+  theme(
+    legend.position = "right",
+    axis.text.y = element_text(size = 12, color = "black"),
+    panel.grid.major = element_blank()
+  )
+
+print(plot_panel_b)
+```
+
+
+
+```{r}
+#| label: create-panel-C
+# Panel C: Selected Family Responses to ALAN (Onset & Cessation)
+
+# Specify families based on expected, neutral, and opposite responses to ALAN
+selected_fams <- c(
+  #"Turdidae", # expected
+  #"Mimidae",
+  #"Muscicapidae", # expected
+  "Corvidae", # expected
+  "Sittidae", # neutral
+  "Cuculidae" # opposite
+  #"Troglodytidae", # opposite
+  #"Anatidae"
+)
+
+# Sub-label for facet ordering
+fam_labels <- c(
+  "Corvidae" = "Expected Relationship",
+  #"Mimidae" = "Neutral Relationship",
+  "Sittidae" = "Neutral Relationship",
+  "Cuculidae" = "Opposite Relationship"
+)
+
+
+# Filter predictions for selected families
+pred_sub_on <- pred_fam_on |>
+  filter(family %in% selected_fams) |>
+  mutate(
+    response_type = "Onset",
+    rel_type = factor(
+      fam_labels[as.character(family)],
+      levels = c(
+        "Expected Relationship",
+        "Neutral Relationship",
+        "Opposite Relationship"
+      )
+    )
+  )
+
+
+pred_sub_ev <- pred_fam_ev |>
+  filter(family %in% selected_fams) |>
+  mutate(
+    response_type = "Cessation",
+    rel_type = factor(
+      fam_labels[as.character(family)],
+      levels = c(
+        "Expected Relationship",
+        "Neutral Relationship",
+        "Opposite Relationship"
+      )
+    )
+  )
+
+
+# FX: Create Onset/Cessation plots
+plot_response_row <- function(data, y_label, y_limits = c(-2.5, 2.5)) {
+  ggplot(data, aes(x = alan, y = fit, color = cloud_cat, fill = cloud_cat)) +
+    # Reference line at y = 0
+    geom_hline(
+      yintercept = 0,
+      linetype = "dashed",
+      color = "grey60",
+      linewidth = 0.4
+    ) +
+    geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.2, color = NA) +
+    geom_line(linewidth = 1) +
+    facet_wrap(~ rel_type + family, nrow = 1) +
+    scale_color_manual(values = color_palette) +
+    scale_fill_manual(values = color_palette) +
+    scale_y_continuous(
+      limits = rev(sort(y_limits)),
+      trans = "reverse",
+      expand = c(0, 0)
+    ) +
+    labs(
+      x = "Light Pollution",
+      y = y_label,
+      color = "Cloud Cover",
+      fill = "Cloud Cover"
+    ) +
+    theme_classic(base_size = 18) +
+    theme(
+      #  axis.title.y = element_text(margin = margin(r = -20)), # change to fix Y axis label
+      strip.background = element_rect(fill = "grey95", color = NA),
+      panel.grid.major = element_line(color = "grey92", linewidth = 0.3),
+      panel.grid.minor = element_line(color = "grey96", linewidth = 0.2),
+      plot.margin = margin(t = 5, r = 5, b = 5, l = 5)
+    )
+}
+
+
+# FX: Sunrise/sunset guide
+build_y_key_panel <- function(
+  solar_event = "Sunrise",
+  y_limits = c(-2.5, 2.5),
+  fixed_arrow_len = 1.2
+) {
+  y_min <- min(y_limits)
+  y_max <- max(y_limits)
+  y_span <- y_max - y_min
+
+  # Fixed Arrow
+  up_start <- 0.3
+  up_end <- 0.3 + fixed_arrow_len
+
+  down_start <- -0.3
+  down_end <- -0.3 - fixed_arrow_len
+
+  ggplot(data.frame(x = c(0, 1), y = y_limits), aes(x = x, y = y)) +
+    # Reference line at y = 0
+    geom_hline(
+      yintercept = 0,
+      linetype = "dashed",
+      color = "grey60",
+      linewidth = 0.4
+    ) +
+
+    # Sunrise/Sunset Label
+    annotate(
+      "text",
+      x = 0.05,
+      y = y_span * 0.015,
+      label = solar_event,
+      hjust = 0,
+      vjust = -0.2,
+      size = 4,
+      fontface = "bold",
+      color = "grey20"
+    ) +
+
+    # Fixed Upward Arrow: Hours After
+    annotate(
+      "segment",
+      x = 0.2,
+      xend = 0.2,
+      y = up_start,
+      yend = up_end,
+      arrow = arrow(length = unit(0.12, "cm")),
+      color = "grey40",
+      linewidth = 0.5
+    ) +
+    annotate(
+      "text",
+      x = 0.32,
+      y = (up_start + up_end) / 2,
+      label = paste("Hours After\n", solar_event),
+      hjust = 0,
+      size = 4,
+      fontface = "italic",
+      color = "grey30"
+    ) +
+
+    # Fixed Downward Arrow: Hours Before
+    annotate(
+      "segment",
+      x = 0.2,
+      xend = 0.2,
+      y = down_start,
+      yend = down_end,
+      arrow = arrow(length = unit(0.12, "cm")),
+      color = "grey40",
+      linewidth = 0.5
+    ) +
+    annotate(
+      "text",
+      x = 0.32,
+      y = (down_start + down_end) / 2,
+      label = paste("Hours Before\n", solar_event),
+      hjust = 0,
+      size = 4,
+      fontface = "italic",
+      color = "grey30"
+    ) +
+
+    scale_y_continuous(
+      limits = c(y_min, y_max),
+      trans = "reverse",
+      expand = c(0, 0)
+    ) +
+    scale_x_continuous(limits = c(0, 1.2), expand = c(0, 0)) +
+    labs(title = NULL, y = NULL, x = NULL) +
+    theme_void(base_size = 18) +
+    theme(
+      plot.title = element_text(
+        size = 8.5,
+        face = "bold",
+        color = "grey30",
+        hjust = 0.5,
+        margin = margin(b = 5)
+      ),
+      plot.margin = margin(t = 5, r = 2, b = 5, l = 8)
+    )
+}
+
+
+# Plot top row (diurnal onset)
+onset_limits <- c(-0.5, 5.0)
+
+plot_families_on <- plot_response_row(
+  data = pred_sub_on,
+  y_label = "Vocal Onset\n(hours relative to sunrise)",
+  y_limits = onset_limits
+) +
+  labs(
+    title = "C) Diurnal Family-Level Predicted Responses to\nLight Pollution and Cloud Cover"
+  ) +
+  theme(
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank()
+  )
+
+plot_key_on <- build_y_key_panel(
+  solar_event = "Sunrise",
+  y_limits = onset_limits
+)
+
+panel_c_top <- (plot_families_on | plot_key_on) +
+  plot_layout(widths = c(6, 1))
+panel_c_top
+
+
+# Plot bottom row (diurnal cessation)
+cessation_limits <- c(-5.0, 0.5)
+
+plot_families_ev <- plot_response_row(
+  data = pred_sub_ev,
+  y_label = "Vocal Cessation\n(hours relative to sunset)",
+  y_limits = cessation_limits
+) +
+  theme(
+    strip.text = element_blank(),
+    strip.background = element_blank()
+  )
+
+plot_key_ev <- build_y_key_panel(
+  solar_event = "Sunset",
+  y_limits = cessation_limits
+)
+
+panel_c_bottom <- (plot_families_ev | plot_key_ev) +
+  plot_layout(widths = c(6, 1))
+panel_c_bottom
+
+
+# Combine to make Panel C ---
+plot_panel_c_final <- (panel_c_top / panel_c_bottom) +
+  plot_layout(heights = c(1, 1), guides = "collect") &
+  theme(legend.position = "bottom")
+plot_panel_c_final
+```
+
+```{r}
+#| label: combine-panels
+# Panels A & B side-by-side on top & Panel C spanning full width below
+# final_fig4 <- (plot_panel_a | plot_panel_b) /
+#   free(plot_panel_c_final) +
+#   plot_layout(heights = c(1.2, 1)) +
+#   plot_annotation(tag_levels = NULL)
+
+bottom_row <- (plot_spacer() | free(plot_panel_c_final) | plot_spacer()) +
+  plot_layout(widths = c(0.05, 0.9, 0.05))
+
+final_fig4 <- (plot_panel_a | plot_panel_b) /
+  bottom_row +
+  plot_layout(heights = c(1.2, 1))
+
+final_fig4
+
+# Save layout
+ggsave(
+  filename = here(dir_307_fig4, "307_fig4.png"),
+  #filename = here(dir_307_fig4, "combined_panel_AB.png"),
+  plot = final_fig4,
+  device = "png",
+  height = 18,
+  width = 14,
+  units = "in",
+  dpi = 300
+)
+
+
+# Save individual panels
+# Panel A - Diurnal Family Coefficients
+ggsave(
+  filename = here(dir_307_fig4, "307_fig4_panelA.png"),
+  plot = plot_panel_a,
+  device = "png",
+  height = 9,
+  width = 9,
+  units = "in",
+  dpi = 300
+)
+
+# Panel B - Nocturnal Predicted ALAN Probability
+ggsave(
+  filename = here(dir_307_fig4, "307_fig4_panelB.png"),
+  plot = plot_panel_b,
+  device = "png",
+  height = 9,
+  width = 9,
+  units = "in",
+  dpi = 300
+)
+
+# Panel C - Family Predicted ALAN Response
+ggsave(
+  filename = here(dir_307_fig4, "307_fig4_panelC.png"),
+  plot = plot_panel_c_final,
+  device = "png",
+  height = 9,
+  width = 14,
+  units = "in",
+  dpi = 300
+)
+```
+
+
+## Panel D - Noc Families
+
+Grab a couple intesting nocturnal families
+
+Three owls:
+Eastern Screech owl - expected
+Tawny owl - neutral
+Tropical screech-owl -opposite
+
+Three nightjars:
+Australian owlet-nightjar - expected
+eurasian nightjar/common poorwill - neutral
+Eastern Whippoorwill - opposite
+
+
+
+
+```{r}
+#| label: create-panel-D
+# Panel D: Selected Species Responses to ALAN (Nocturnal)
+
+library(ggh4x)
+
+# Specify species based on expected, neutral, and opposite responses to ALAN
+species_rel_map <- c(
+  "Eastern Screech-Owl" = "Expected Relationship",
+  "Tawny Owl" = "Neutral Relationship",
+  "Tropical Screech-Owl" = "Opposite Relationship",
+  "Australian Owlet-nightjar" = "Expected Relationship",
+  "Eurasian Nightjar" = "Neutral Relationship",
+  "Eastern Whip-poor-will" = "Opposite Relationship"
+)
+
+rel_levels <- c(
+  "Expected Relationship",
+  "Neutral Relationship",
+  "Opposite Relationship"
+)
+
+species_ordered <- c(
+  "Eastern Screech-Owl",
+  "Australian Owlet-nightjar",
+  "Tawny Owl",
+  "Eurasian Nightjar",
+  "Tropical Screech-Owl",
+  "Eastern Whip-poor-will"
+)
+
+# Prepare the subset data
+pred_sub <- pred_species |>
+  filter(common_name %in% species_ordered) |>
+  mutate(
+    rel_type = factor(
+      species_rel_map[as.character(common_name)],
+      levels = rel_levels
+    ),
+    common_name = factor(common_name, levels = species_ordered)
+  )
+
+plot_noc_sp <- ggplot(
+  pred_sub,
+  aes(x = alan, y = fit, color = cloud_cat, fill = cloud_cat)
+) +
+  geom_line(linewidth = 1) +
+  geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.2, color = NA) +
+  facet_nested_wrap(
+    vars(rel_type, common_name),
+    ncol = 2,
+    axes = "y"
+  ) +
+  scale_color_manual(values = color_palette) +
+  scale_fill_manual(values = color_palette) +
+  labs(
+    #title = "Nocturnal Species Predicted Responses\nto Light Pollution and Cloud Cover",
+    x = "Light Pollution",
+    y = "Probability of Vocalization",
+    color = "Cloud cover",
+    fill = "Cloud cover"
+  ) +
+  theme_classic(base_size = 18) +
+  theme(
+    legend.position = "bottom",
+    strip.background = element_rect(fill = "grey95", color = NA),
+    strip.text = element_text(face = "bold"),
+    ggh4x.facet.nestline = element_line(color = "black") # Optional accent line
+  )
+
+print(plot_noc_sp)
+```
+
+
+```{r}
+#| label: save-panel-D
+# Save layout
+ggsave(
+  filename = here(dir_307_fig4, "307_fig4_panelD.png"),
+  plot = plot_noc_sp,
+  device = "png",
+  height = 9,
+  width = 7,
+  units = "in",
+  dpi = 300
+)
+```

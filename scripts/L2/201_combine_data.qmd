@@ -231,18 +231,37 @@ final_diurnal <- final_diurnal |>
 # Now there are no unsolved cases of NAs :]
 final_diurnal |> filter(if_any(everything(), is.na)) |> count()
 
+### REMOVE 7 ADDITIONAL NA VALUES
+final_diurnal <- final_diurnal |>
+  filter(!(is.na(value)))
+
+
 #nas <- final_diurnal |> filter(if_any(everything(), is.na))
 # sum_nas <- nas |>
 #   group_by(station_id, date) |>
 #   summarize(across(everything(), ~ sum(is.na(.))))
 
+# A couple stations have some duplicate vocalizations, so we de-dupe them
+final_diurnal |>
+  filter(category == "ev_ces") |>
+  count(station_id, date, common_name, datetime, sort = TRUE) |>
+  filter(n > 1)
+
+final_diurnal |> filter(category == "ev_ces") |> nrow()
+final_diurnal |>
+  filter(category == "ev_ces") |>
+  distinct(station_id, date, common_name, datetime, .keep_all = TRUE) |>
+  nrow()
+
 # Create different datasets to analyze for modelling
 final_diurnal_first_onset <- final_diurnal |>
+  distinct(station_id, date, common_name, datetime, .keep_all = TRUE) |>
   filter(category == "first_onset") |>
   pivot_wider(names_from = category, values_from = value) |>
   relocate(first_onset, .before = sunrise)
 
 final_diurnal_ev_ces <- final_diurnal |>
+  distinct(station_id, date, common_name, datetime, .keep_all = TRUE) |>
   filter(category == "ev_ces") |>
   pivot_wider(names_from = category, values_from = value) |>
   relocate(ev_ces, .before = sunrise)
