@@ -55,3 +55,7 @@ mod_noc_50 <- glmmTMB(
 
 #Save model object:
 saveRDS(mod_noc_50, file = here(dir_305_models, "305j_mod_noc_50.rds"))
+
+## look at final model
+summary(mod_noc_50)
+mod_noc_50 <- readRDS(here(dir_305_models, "305j_mod_noc_50.rds"))
