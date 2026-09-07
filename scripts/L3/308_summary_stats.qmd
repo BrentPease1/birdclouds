@@ -100,8 +100,10 @@ print(geo_summary)
 # Total number of vocs used in diurnal model
 nrow(diurn_on_50) # 6,712,067 #### 687,906
 nrow(diurn_ev_50) # 5,030,446 #### 272,329
-# Total number of presences used in nocturnal model
+# Total number of detection-nondetections used in nocturnal model
+nrow(noc_50)
 nrow(noc_50 |> filter(det == 1)) # 147,576
+nrow(noc_50 |> filter(det == 0)) # absences: 515,868
 ```
 
 ```{r}
@@ -144,7 +146,7 @@ diurn_ev_50 |>
   )
 
 noc_50 |>
-  filter(det == 1) |>
+  #filter(det == 1) |>
   group_by(species_id) |>
   summarize(vocs_sp = n()) |>
   ungroup() |>
