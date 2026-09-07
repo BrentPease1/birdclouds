@@ -11,7 +11,7 @@ format:
     embed-resources: false
     cache: false
 abstract: This script puts together some basic summary statistics of the final data used for modelling.
-date: 2026-07-31 # last modified
+date: 2026-09-07 # last modified
 date-format: "yyyy-MM-dd"
 ---
 
@@ -47,11 +47,11 @@ noc_50 <- readRDS(here(dir_304_final_data, "304f_noc_final_50.rds"))
 
 ## onset
 load(here("data", "L2", "final_diurnal_first_onset.RData"))
-nrow(final_diurnal_first_onset) # 9,577,620 #### 977,256
+nrow(final_diurnal_first_onset) ##### 977,256
 
 ## ev cessation
 load(here("data", "L2", "final_diurnal_ev_ces.RData"))
-nrow(final_diurnal_ev_ces) # 7,187,860 #### 375,886
+nrow(final_diurnal_ev_ces) ##### 375,886
 
 # ncotrnal
 load(here("data", "L2", "final_nocturnal.RData"))
@@ -84,9 +84,9 @@ stations_with_geo <- st_join(coords_sf, world |> select(admin, continent))
 geo_summary <- stations_with_geo |>
   st_drop_geometry() |>
   summarize(
-    total_stations = n_distinct(station_id), # 6,436 stations #### 6,451
-    total_countries = n_distinct(admin, na.rm = TRUE), # 87 countries #### 88 counties
-    total_continents = n_distinct(continent, na.rm = TRUE) # 6 continents #### 6 continents
+    total_stations = n_distinct(station_id), #### 6,451
+    total_countries = n_distinct(admin, na.rm = TRUE), ##### 88 counties
+    total_continents = n_distinct(continent, na.rm = TRUE) ##### 6 continents
   )
 
 print(geo_summary)
@@ -98,8 +98,8 @@ print(geo_summary)
 #| label: total-vocs
 ### Total vocs
 # Total number of vocs used in diurnal model
-nrow(diurn_on_50) # 6,712,067 #### 687,906
-nrow(diurn_ev_50) # 5,030,446 #### 272,329
+nrow(diurn_on_50) ##### 687,906
+nrow(diurn_ev_50) ##### 272,329
 # Total number of detection-nondetections used in nocturnal model
 nrow(noc_50)
 nrow(noc_50 |> filter(det == 1)) # 147,576
@@ -112,7 +112,7 @@ nrow(noc_50 |> filter(det == 0)) # absences: 515,868
 on_sp <- diurn_on_50 |> distinct(species_id)
 ev_sp <- diurn_ev_50 |> distinct(species_id)
 noc_50 |> distinct(species_id) |> count() # 24 nocturnal species
-rbind(on_sp, ev_sp) |> distinct(species_id) |> count() # 465 diurnal species #### 441
+rbind(on_sp, ev_sp) |> distinct(species_id) |> count() # 441 diurnal species
 
 ### Unique families
 on_fam <- diurn_on_50 |> distinct(family)
@@ -185,10 +185,143 @@ stations_with_geo <- st_join(coords_sf, world |> select(admin, continent))
 geo_summary <- stations_with_geo |>
   st_drop_geometry() |>
   summarize(
-    total_stations = n_distinct(station_id), # 5,266 stations #### 5,564
-    total_countries = n_distinct(admin, na.rm = TRUE), # 56 countries ### 57
+    total_stations = n_distinct(station_id), # 5,564stations
+    total_countries = n_distinct(admin, na.rm = TRUE), # 57 countries
     total_continents = n_distinct(continent, na.rm = TRUE) # 6 continents
   )
 
 print(geo_summary)
+```
+
+
+# fig. 2b
+
+
+```{r}
+#| label: prep-fig2b-data
+# some code adapted from Fig.1D of Pease & Gilbert 2025
+# https://github.com/BrentPease1/alan/blob/main/Scripts/302_figure_01d.R
+
+clean_on <- diurn_on_50 |>
+  mutate(month = lubridate::month(date, label = TRUE)) |>
+  mutate(month = factor(month, levels = month.abb)) |>
+  mutate(year = lubridate::year(date)) |>
+  arrange(year, month) |>
+  mutate(month_year = paste(month, year)) |>
+  mutate(month_year = factor(month_year, levels = unique(month_year))) |>
+  select(station_id, common_name, month_year, year, activity_period)
+
+clean_ev <- diurn_ev_50 |>
+  mutate(month = lubridate::month(date, label = TRUE)) |>
+  mutate(month = factor(month, levels = month.abb)) |>
+  mutate(year = lubridate::year(date)) |>
+  arrange(year, month) |>
+  mutate(month_year = paste(month, year)) |>
+  mutate(month_year = factor(month_year, levels = unique(month_year))) |>
+  select(station_id, common_name, month_year, year, activity_period)
+
+clean_noc <- noc_50 |>
+  #filter(det == 1) |>
+  # mutate(activity_period = "nocturnal") |>
+  mutate(date = as.Date(night_start)) |>
+  mutate(month = lubridate::month(date, label = TRUE)) |>
+  mutate(month = factor(month, levels = month.abb)) |>
+  mutate(year = lubridate::year(date)) |>
+  arrange(year, month) |>
+  mutate(month_year = paste(month, year)) |>
+  mutate(month_year = factor(month_year, levels = unique(month_year))) |>
+  select(station_id, common_name, month_year, year, activity_period)
+
+vocalizations <- rbind(clean_noc, clean_on, clean_ev)
+
+### month-year plot
+vocalizations |>
+  filter(month_year != "May 2025") |>
+  ggplot(aes(x = month_year, fill = activity_period)) +
+  geom_bar(position = "stack") +
+  labs(
+    x = "",
+    y = "Thousands of Vocalizations",
+    fill = "Activity Period"
+  ) +
+  scale_y_continuous(
+    labels = scales::comma_format(scale = 1e-3, suffix = "k")
+  ) +
+  scale_fill_manual(
+    "Type",
+    labels = c("Diurnal", "Nocturnal"),
+    values = c("#abd0e3", "#2a232e")
+  ) +
+  # only show x-axis labels for some months
+  scale_x_discrete(
+    breaks = c("Apr 2024", "Jul 2024", "Oct 2024", "Jan 2025", "Apr 2025"),
+    labels = c("Apr 2024", "Jul 2024", "Oct 2024", "Jan 2025", "Apr 2025")
+  ) +
+  theme(
+    legend.position = c(0.4, 0.8),
+    axis.line = element_line(color = "black", linewidth = 0.1),
+    axis.title.y = element_text(color = "black", size = 24),
+    axis.text.x = element_text(
+      color = "black",
+      size = 24,
+      angle = 45,
+      hjust = 1
+    ),
+    axis.text.y = element_text(color = "black", size = 24),
+    legend.title = element_blank(),
+    axis.ticks = element_blank(),
+    legend.background = element_rect(color = NA, fill = "white"),
+    legend.text = element_text(color = "black", size = 24),
+    legend.key.size = unit(10, units = "mm"),
+    panel.background = element_rect(color = NA, fill = "white"),
+    plot.background = element_rect(color = NA, fill = "white")
+  )
+
+
+# year plot
+vocalizations |>
+  ggplot(aes(x = as.factor(year), fill = activity_period)) +
+  geom_bar(position = "stack", width = 0.9) +
+  labs(
+    x = "",
+    y = "Thousands of Vocalizations",
+    fill = "Activity Period"
+  ) +
+  scale_y_continuous(
+    labels = scales::comma_format(scale = 1e-3, suffix = "k")
+  ) +
+  scale_fill_manual(
+    "Type",
+    labels = c("Diurnal", "Nocturnal"),
+    values = c("#abd0e3", "#2a232e")
+  ) +
+  theme(
+    #axis.line = element_line(color = "black", linewidth = 0.1),
+    axis.title.y = element_text(color = "black", size = 24),
+    axis.text.x = element_text(
+      color = "black",
+      size = 24,
+      angle = 45,
+      hjust = 1
+    ),
+    axis.text.y = element_text(color = "black", size = 24),
+    legend.title = element_blank(),
+    axis.ticks = element_blank(),
+    legend.position = "none",
+    panel.background = element_rect(color = NA, fill = "white"),
+    plot.background = element_rect(color = NA, fill = "white")
+  )
+
+ggsave(
+  here("data", "L3", "308_fig2b_vocs.png"),
+  width = 5,
+  height = 7.5,
+  dpi = 300
+)
+
+
+on_sp <- diurn_on_50 |> distinct(species_id)
+ev_sp <- diurn_ev_50 |> distinct(species_id)
+noc_50 |> distinct(species_id) |> count() # 24 nocturnal species
+diur <- rbind(on_sp, ev_sp) |> distinct(species_id) |> count() # 441 diurnal species
 ```
