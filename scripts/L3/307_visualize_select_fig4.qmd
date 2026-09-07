@@ -11,27 +11,9 @@ format:
     embed-resources: false
     cache: false
 abstract: This script visualizes the coefficients of responses to ALAN across all families/species and selected families/species
-date: 2026-07-25 # last modified
+date: 2026-09-07 # last modified
 date-format: "yyyy-MM-dd"
 ---
-
-
-**Vision**
-
-* Panel A: Dot plot showing onset/cessation coefficients for the family-level RDM ALAN slope
-  * Y axis Family name 
-  * X axis is the value of the coefficient
-  * Size of dots is the # of vocs in that family
-* Panel B: dot plot? showing nocturnal coefficient for rdm ALAN nonlinear slope? interaction
-  * Y axis = species name
-  * X axis is value of Coefficient
-  * Size dots = # vocs
-* Panel C: Response line graphs of selected onset/cess coefficients for the family-levle RDM ALAN slope
-  * Top panel shows 3 graphs with onset lines
-  * Bottom panel shows 3 graphs with cess lines
-  * Leftmost 2 graphs should be expected relationship (e.g., cardinal family -likely high data group)
-  * Middle graph should be neutral relationship
-  * Right graph should be opposite expected relationship (e.g., vultures? -likely low data group)
 
 
 # setup env
@@ -1046,9 +1028,6 @@ Australian owlet-nightjar - expected
 eurasian nightjar/common poorwill - neutral
 Eastern Whippoorwill - opposite
 
-
-
-
 ```{r}
 #| label: create-panel-D
 # Panel D: Selected Species Responses to ALAN (Nocturnal)
@@ -1135,4 +1114,75 @@ ggsave(
   units = "in",
   dpi = 300
 )
+```
+
+# Supporting text results
+
+Calculate predictions to support results text
+
+Onset advancement by family...
+These numbers are slightly smaller than PEase & Gilbert 2025 because these results use 5th and 95th percentiles of ALAN rather than min/max. Also, the preds vary by family
+```{r}
+#| label: calc-ALAN-cld-preds
+# Calculate ALAN quantiles (5th, 95th)
+p05_val <- quantile(diurn_on$alan_sc, 0.05, na.rm = TRUE)
+p95_val <- quantile(diurn_on$alan_sc, 0.95, na.rm = TRUE)
+
+# Grab closest ALAN value
+closest_p05 <- alan_seq_on[which.min(abs(alan_seq_on - p05_val))]
+closest_p95 <- alan_seq_on[which.min(abs(alan_seq_on - p95_val))]
+
+# Calculate onset advancement in minutes per family
+family_advances <- pred_fam_on |>
+  filter(alan_sc %in% c(closest_p05, closest_p95)) |>
+  mutate(alan_cat = ifelse(alan_sc == closest_p05, "Dark", "Light")) |>
+  select(family, cloud_cat, alan_cat, fit) |>
+  pivot_wider(names_from = alan_cat, values_from = fit) |>
+  mutate(advance_mins = (Dark - Light) * 60)
+
+# Summarize onset advancement
+adv_summary <- family_advances |>
+  group_by(cloud_cat) |>
+  summarize(
+    mean_adv = mean(advance_mins, na.rm = TRUE),
+    sd_adv = sd(advance_mins, na.rm = TRUE),
+    median_adv = median(advance_mins, na.rm = TRUE)
+  )
+
+adv_summary
+```
+
+
+"Roughly half `(52.4%)` of the diurnal avian families showed extended daily vocal activity windows, characterized by both earlier morning onset..."
+```{r}
+#| label: calc-extended-windows
+coef_panel_a_on_wide |>
+  group_by(family) |>
+  mutate(
+    extended = case_when(
+      (Onset < 0 &
+        Cessation > 0) ~ "extended window",
+      TRUE ~ "not extended"
+    )
+  ) |>
+  ungroup() |>
+  count(extended) |>
+  mutate(percentage = (n / sum(n)) * 100) ## 52.4% extended (33 fam), 47.6% not extended (30 fam)
+```
+
+
+"Most nocturnal species `(75%)` showed lower vocalization probability in bright compared to dark landscapes"
+```{r}
+#| label: calc-lower-dets
+coef_panel_b_wide |>
+  group_by(common_name) |>
+  mutate(
+    lower_det_bright = case_when(
+      any(Bright < Dark) ~ "lower",
+      TRUE ~ "higher"
+    )
+  ) |>
+  ungroup() |>
+  count(lower_det_bright) |>
+  mutate(percentage = (n / sum(n)) * 100) ## 75%, 25%
 ```

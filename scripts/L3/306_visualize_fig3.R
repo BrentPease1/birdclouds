@@ -565,3 +565,34 @@ ggsave(
 #   units = "in",
 #   dpi = 600
 # )
+
+######## Calculate onset advancement in minutes
+
+# Calculate ALAN quantiles (5th, 95th)
+p05_val <- quantile(diurn_on$alan_sc, 0.05, na.rm = TRUE)
+p95_val <- quantile(diurn_on$alan_sc, 0.95, na.rm = TRUE)
+
+closest_p05 <- unique(plot_data_on$alan_sc)[which.min(abs(
+  unique(plot_data_on$alan_sc) - p05_val
+))]
+closest_p95 <- unique(plot_data_on$alan_sc)[which.min(abs(
+  unique(plot_data_on$alan_sc) - p95_val
+))]
+
+plot_data_on |>
+  ###filter for 5th, 95th percentiles ALAN
+  filter(alan_sc %in% c(closest_p05, closest_p95)) |>
+  mutate(alan_cat = ifelse(alan_sc == min(alan_sc), "Dark", "Light")) |>
+  ###filter for min/max ALAN
+  #filter(alan_sc == min(alan_sc) | alan_sc == max(alan_sc)) |>
+  #mutate(alan_cat = ifelse(alan_sc == min(alan_sc), "Dark", "Light")) |>
+  select(cld_lab, alan_cat, fit) |>
+  pivot_wider(names_from = alan_cat, values_from = fit) |>
+  mutate(advance_mins = (Dark - Light) * 60)
+
+## for 5th/95th percentiles ALAN:
+# no clouds advancement: 9.2 mins
+# clouds advancement: 12.9 mins
+## for min/max ALAN:
+# no clouds advancement: 17.5 mins
+# clouds advancement: 24.5 mins
