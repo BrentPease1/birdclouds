@@ -325,7 +325,7 @@ ggsave(
   dpi = 300
 )
 
-
+nrow(vocalizations)
 on_sp <- diurn_on_50 |> distinct(species_id)
 ev_sp <- diurn_ev_50 |> distinct(species_id)
 noc_50 |> distinct(species_id) |> count() # 24 nocturnal species
