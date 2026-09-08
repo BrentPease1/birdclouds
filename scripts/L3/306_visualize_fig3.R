@@ -228,6 +228,7 @@ plot_on <-
   geom_line(linewidth = 1) +
   scale_color_manual(values = color_palette) +
   scale_fill_manual(values = color_palette) +
+  scale_x_continuous(limits = c(0, 6), breaks = seq(0, 6, by = 2)) +
   scale_y_continuous(
     limits = c(0, 3),
     breaks = seq(0, 3, by = 0.5)
@@ -260,7 +261,7 @@ plot_on <-
   ) +
   labs(
     title = "A) Diurnal Onset",
-    x = "Light Pollution",
+    x = "Light Pollution: ln(Radiance + 1)",
     y = "Vocal Onset\n(hours relative to sunrise)",
     fill = "cld_lab",
     color = "cld_lab"
@@ -305,6 +306,7 @@ plot_ev <-
     limits = c(0, -3),
     breaks = seq(0, -3, by = -0.5)
   ) +
+  scale_x_continuous(limits = c(0, 6), breaks = seq(0, 6, by = 2)) +
   # Zero baseline reference line
   geom_hline(
     yintercept = 0,
@@ -333,7 +335,7 @@ plot_ev <-
   ) +
   labs(
     title = "B) Diurnal Cessation",
-    x = "Light Pollution",
+    x = "Light Pollution: ln(Radiance + 1)",
     y = "Vocal Cessation\n(hours relative to sunset)",
     fill = "cld_lab",
     color = "cld_lab"
@@ -373,9 +375,10 @@ plot_noc <-
   geom_line(linewidth = 1) +
   scale_color_manual(values = color_palette) +
   scale_fill_manual(values = color_palette) +
+  scale_x_continuous(limits = c(0, 6), breaks = seq(0, 6, by = 2)) +
   labs(
-    title = "C) Nocturnal Night Period",
-    x = "Light Pollution",
+    title = "C) Nocturnal Period",
+    x = "Light Pollution: ln(Radiance + 1)",
     y = "Probability of Vocalization",
     fill = "cld_lab",
     color = "cld_lab"
