@@ -458,7 +458,7 @@ kable(
 ```
 
 
-# Selected Figure 4 Panels
+# Create Figure 4/5 Panels
 
 ```{r}
 #| label: data-prep
@@ -522,8 +522,10 @@ sp_num_noc <- noc |>
   summarize(n_vocs = n(), .groups = "drop")
 ```
 
+## Fig. 4 - Diurnal family & species
+
 ```{r}
-#| label: create-panel-A
+#| label: create-fig4-panel-A
 # Panel A: Family-level ALAN Slopes (Ordered by Onset Coefficients)
 
 # Create wide format table and arrange families by Onset coefficient
@@ -604,116 +606,20 @@ print(plot_panel_a)
 ```
 
 
-"Predictions for nocturnal vocal detection probability were evaluated under dark (5th percentile ALAN) and bright (95th percentile ALAN) conditions at mean cloud cover."
-
 ```{r}
-#| label: create-panel-B
-# Panel B: Dark vs Bright Light Pollution probabilities (Ordered by dark levels)
-
-# Setup data in long format
-coef_panel_b_long <- grid_noc |>
-  left_join(sp_num_noc, by = "common_name")
-
-# Setup data in wide format - order by dark conditions
-coef_panel_b_wide <- grid_noc |>
-  select(common_name, light_condition, prob_det) |>
-  pivot_wider(names_from = light_condition, values_from = prob_det) |>
-  rename(Dark = `Low`, Bright = `High`) |>
-  # Arrange species continuously from lowest detection in the dark to highest
-  arrange(Dark)
-
-# Re-level common_name factor
-coef_panel_b_long <- coef_panel_b_long |>
-  mutate(
-    common_name = factor(common_name, levels = coef_panel_b_wide$common_name)
-  )
-
-coef_panel_b_wide <- coef_panel_b_wide |>
-  mutate(
-    common_name = factor(common_name, levels = coef_panel_b_wide$common_name)
-  )
-
-# Setup background grey/white row shading
-n_species <- nrow(coef_panel_b_wide)
-zebra_df_b <- data.frame(
-  ymin = seq(0.5, n_species - 0.5, by = 2),
-  ymax = seq(1.5, n_species + 0.5, by = 2)
-)
-
-# Plot Panel B
-plot_panel_b <- ggplot() +
-  # Row shading
-  geom_rect(
-    data = zebra_df_b,
-    aes(xmin = -Inf, xmax = Inf, ymin = ymin, ymax = ymax),
-    fill = "grey96",
-    color = NA
-  ) +
-  # Dumbbell segment connecting Dark and Bright predictions
-  geom_segment(
-    data = coef_panel_b_wide,
-    aes(y = common_name, yend = common_name, x = Dark, xend = Bright),
-    color = "grey70",
-    linewidth = 0.5
-  ) +
-  # Detection probability points
-  geom_point(
-    data = coef_panel_b_long,
-    aes(x = prob_det, y = common_name, color = light_condition, size = n_vocs),
-    alpha = 0.85
-  ) +
-  # Colors for Light pollution levels
-  scale_color_manual(values = color_palette) +
-  # Scale size of dots
-  scale_size(
-    range = c(1, 7.5),
-    name = "Number of\nVocalizations",
-    breaks = c(1500, 10000, 35000, 100000),
-    labels = scales::label_comma()
-  ) +
-  # Format X-axis as clean %s
-  scale_x_continuous(
-    labels = scales::label_percent(accuracy = 1),
-    limits = c(0, 1)
-  ) +
-  labs(
-    title = "B) Nocturnal Species-Level\nPredicted Vocalization Probability",
-    x = "Probability of Vocalization",
-    y = "Species",
-    color = "Level of\nLight Pollution"
-  ) +
-  theme_classic(base_size = 18) +
-  theme(
-    legend.position = "right",
-    axis.text.y = element_text(size = 12, color = "black"),
-    panel.grid.major = element_blank()
-  )
-
-print(plot_panel_b)
-```
-
-
-
-```{r}
-#| label: create-panel-C
-# Panel C: Selected Family Responses to ALAN (Onset & Cessation)
+#| label: create-fig4-panel-B-HORIZONTAL
+# Panel B: Selected Family Responses to ALAN (Onset & Cessation)
 
 # Specify families based on expected, neutral, and opposite responses to ALAN
 selected_fams <- c(
-  #"Turdidae", # expected
-  #"Mimidae",
-  #"Muscicapidae", # expected
   "Corvidae", # expected
   "Sittidae", # neutral
   "Cuculidae" # opposite
-  #"Troglodytidae", # opposite
-  #"Anatidae"
 )
 
 # Sub-label for facet ordering
 fam_labels <- c(
   "Corvidae" = "Expected Relationship",
-  #"Mimidae" = "Neutral Relationship",
   "Sittidae" = "Neutral Relationship",
   "Cuculidae" = "Opposite Relationship"
 )
@@ -900,7 +806,7 @@ plot_families_on <- plot_response_row(
   y_limits = onset_limits
 ) +
   labs(
-    title = "C) Diurnal Family-Level Predicted Responses to\nLight Pollution and Cloud Cover"
+    title = "B) Diurnal Family-Level Predicted Responses to\nLight Pollution and Cloud Cover"
   ) +
   theme(
     axis.title.x = element_blank(),
@@ -913,9 +819,9 @@ plot_key_on <- build_y_key_panel(
   y_limits = onset_limits
 )
 
-panel_c_top <- (plot_families_on | plot_key_on) +
+panel_b_top <- (plot_families_on | plot_key_on) +
   plot_layout(widths = c(6, 1))
-panel_c_top
+panel_b_top
 
 
 # Plot bottom row (diurnal cessation)
@@ -936,48 +842,636 @@ plot_key_ev <- build_y_key_panel(
   y_limits = cessation_limits
 )
 
-panel_c_bottom <- (plot_families_ev | plot_key_ev) +
+panel_b_bottom <- (plot_families_ev | plot_key_ev) +
   plot_layout(widths = c(6, 1))
-panel_c_bottom
+panel_b_bottom
 
 
-# Combine to make Panel C ---
-plot_panel_c_final <- (panel_c_top / panel_c_bottom) +
+# Combine to make Panel B ---
+plot_panel_b_hori <- (panel_b_top / panel_b_bottom) +
   plot_layout(heights = c(1, 1), guides = "collect") &
   theme(legend.position = "bottom")
-plot_panel_c_final
+plot_panel_b_hori
+```
+
+
+```{r}
+#| label: create-fig4-panel-B-VERTICAL
+# Panel B: Selected Family Responses to ALAN (Onset & Cessation) - 3 Rows x 2 Columns
+selected_fams <- c(
+  "Corvidae", # expected
+  "Sittidae", # neutral
+  "Cuculidae" # opposite
+)
+
+fam_labels <- c(
+  "Corvidae" = "Expected Relationship: Corvidae",
+  "Sittidae" = "Neutral Relationship: Sittidae",
+  "Cuculidae" = "Opposite Relationship: Cuculidae"
+)
+
+# FX: Gray banner bar spanning the row
+build_banner_panel <- function(text_label) {
+  ggplot() +
+    annotate(
+      "rect",
+      xmin = -Inf,
+      xmax = Inf,
+      ymin = -Inf,
+      ymax = Inf,
+      fill = "grey92",
+      color = NA
+    ) +
+    annotate(
+      "text",
+      x = 0.5,
+      y = 0.5,
+      label = text_label,
+      size = 4.2,
+      fontface = "bold",
+      color = "grey20"
+    ) +
+    theme_void() +
+    theme(
+      plot.margin = margin(t = 6, r = 6, b = 2, l = 6)
+    )
+}
+
+# Limits
+onset_limits <- c(-0.5, 5.0)
+cessation_limits <- c(-5.0, 0.5)
+
+# FX: Single family plot panel
+plot_single_panel <- function(
+  data,
+  f_name,
+  y_limits,
+  col_title = NULL,
+  y_axis_label = NULL,
+  show_x_axis = FALSE
+) {
+  p <- data |>
+    filter(family == f_name) |>
+    ggplot(aes(x = alan, y = fit, color = cloud_cat, fill = cloud_cat)) +
+    geom_hline(
+      yintercept = 0,
+      linetype = "dashed",
+      color = "grey60",
+      linewidth = 0.4
+    ) +
+    geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.2, color = NA) +
+    geom_line(linewidth = 1) +
+    scale_color_manual(values = color_palette) +
+    scale_fill_manual(values = color_palette) +
+    scale_x_continuous(
+      limits = c(-2, 4),
+      breaks = seq(-2, 4, by = 2),
+      expand = c(0, 0)
+    ) +
+    scale_y_continuous(
+      limits = rev(sort(y_limits)),
+      trans = "reverse",
+      expand = c(0, 0)
+    ) +
+    labs(
+      title = col_title,
+      x = if (show_x_axis) "Light Pollution: ln(Radiance + 1)" else NULL,
+      y = y_axis_label,
+      color = "Cloud Cover",
+      fill = "Cloud Cover"
+    ) +
+    theme_classic(base_size = 14) +
+    theme(
+      plot.title = element_text(
+        face = "bold",
+        size = 13,
+        hjust = 0.5,
+        margin = margin(b = 4)
+      ),
+      axis.title.y = element_text(size = 10, margin = margin(r = 5)),
+      axis.title.x = element_text(size = 11, margin = margin(t = 5)),
+      panel.grid.major = element_line(color = "grey92", linewidth = 0.3),
+      panel.grid.minor = element_line(color = "grey96", linewidth = 0.2),
+      plot.margin = margin(t = 4, r = 6, b = 4, l = 6)
+    )
+
+  if (!show_x_axis) {
+    p <- p +
+      theme(
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()
+      )
+  }
+
+  return(p)
+}
+
+# FX: Sunrise/sunset guide panel
+build_y_key_panel <- function(
+  solar_event = "Sunrise",
+  y_limits = c(-2.5, 2.5),
+  fixed_arrow_len = 1.2
+) {
+  y_min <- min(y_limits)
+  y_max <- max(y_limits)
+  y_span <- y_max - y_min
+
+  up_start <- 0.3
+  up_end <- 0.3 + fixed_arrow_len
+
+  down_start <- -0.3
+  down_end <- -0.3 - fixed_arrow_len
+
+  ggplot(data.frame(x = c(0, 1), y = y_limits), aes(x = x, y = y)) +
+    geom_hline(
+      yintercept = 0,
+      linetype = "dashed",
+      color = "grey60",
+      linewidth = 0.4
+    ) +
+    annotate(
+      "text",
+      x = 0.05,
+      y = y_span * 0.015,
+      label = solar_event,
+      hjust = 0,
+      vjust = -0.2,
+      size = 3.2,
+      fontface = "bold",
+      color = "grey20"
+    ) +
+    annotate(
+      "segment",
+      x = 0.2,
+      xend = 0.2,
+      y = up_start,
+      yend = up_end,
+      arrow = arrow(length = unit(0.1, "cm")),
+      color = "grey40",
+      linewidth = 0.4
+    ) +
+    annotate(
+      "text",
+      x = 0.32,
+      y = (up_start + up_end) / 2,
+      label = paste("Hours After\n", solar_event),
+      hjust = 0,
+      size = 2.8,
+      fontface = "italic",
+      color = "grey30"
+    ) +
+    annotate(
+      "segment",
+      x = 0.2,
+      xend = 0.2,
+      y = down_start,
+      yend = down_end,
+      arrow = arrow(length = unit(0.1, "cm")),
+      color = "grey40",
+      linewidth = 0.4
+    ) +
+    annotate(
+      "text",
+      x = 0.32,
+      y = (down_start + down_end) / 2,
+      label = paste("Hours Before\n", solar_event),
+      hjust = 0,
+      size = 2.8,
+      fontface = "italic",
+      color = "grey30"
+    ) +
+    scale_y_continuous(
+      limits = c(y_min, y_max),
+      trans = "reverse",
+      expand = c(0, 0)
+    ) +
+    scale_x_continuous(limits = c(0, 1.2), expand = c(0, 0)) +
+    labs(title = NULL, y = NULL, x = NULL) +
+    theme_void() +
+    theme(plot.margin = margin(t = 15, r = 2, b = 5, l = 2))
+}
+
+# Static key panels for each column
+key_on <- build_y_key_panel("Sunrise", onset_limits)
+key_ev <- build_y_key_panel("Sunset", cessation_limits)
+
+onset_txt <- "Vocal Onset\n(hours relative to sunrise)"
+cess_txt <- "Vocal Cessation\n(hours relative to sunset)"
+
+# Build all panels as individual plot objects
+b1 <- build_banner_panel(fam_labels["Corvidae"])
+p1_on <- plot_single_panel(
+  pred_fam_on,
+  "Corvidae",
+  onset_limits,
+  y_axis_label = onset_txt,
+  show_x_axis = FALSE
+)
+p1_ev <- plot_single_panel(
+  pred_fam_ev,
+  "Corvidae",
+  cessation_limits,
+  y_axis_label = cess_txt,
+  show_x_axis = FALSE
+)
+
+b2 <- build_banner_panel(fam_labels["Sittidae"])
+p2_on <- plot_single_panel(
+  pred_fam_on,
+  "Sittidae",
+  onset_limits,
+  y_axis_label = onset_txt,
+  show_x_axis = FALSE
+)
+p2_ev <- plot_single_panel(
+  pred_fam_ev,
+  "Sittidae",
+  cessation_limits,
+  y_axis_label = cess_txt,
+  show_x_axis = FALSE
+)
+
+b3 <- build_banner_panel(fam_labels["Cuculidae"])
+p3_on <- plot_single_panel(
+  pred_fam_on,
+  "Cuculidae",
+  onset_limits,
+  y_axis_label = onset_txt,
+  show_x_axis = TRUE
+)
+p3_ev <- plot_single_panel(
+  pred_fam_ev,
+  "Cuculidae",
+  cessation_limits,
+  y_axis_label = cess_txt,
+  show_x_axis = TRUE
+)
+
+# Layout design matrix:
+# Rows 1, 3, 5 are banners spanning all 4 columns
+# Rows 2, 4, 6 are the Onset plot, Onset key, Cessation plot, Cessation key
+design <- "
+  AAAA
+  BCDE
+  FFFF
+  GHIJ
+  KKKK
+  LMNO
+"
+
+plot_panel_b_vert <- wrap_plots(
+  A = b1,
+  B = p1_on,
+  C = key_on,
+  D = p1_ev,
+  E = key_ev,
+  F = b2,
+  G = p2_on,
+  H = key_on,
+  I = p2_ev,
+  J = key_ev,
+  K = b3,
+  L = p3_on,
+  M = key_on,
+  N = p3_ev,
+  O = key_ev,
+  design = design,
+  widths = c(4, 1, 4, 1),
+  heights = c(0.18, 1, 0.18, 1, 0.18, 1),
+  guides = "collect"
+) &
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11)
+  )
+
+plot_panel_b_vert
 ```
 
 ```{r}
-#| label: combine-panels
-# Panels A & B side-by-side on top & Panel C spanning full width below
-# final_fig4 <- (plot_panel_a | plot_panel_b) /
-#   free(plot_panel_c_final) +
-#   plot_layout(heights = c(1.2, 1)) +
-#   plot_annotation(tag_levels = NULL)
-
-bottom_row <- (plot_spacer() | free(plot_panel_c_final) | plot_spacer()) +
-  plot_layout(widths = c(0.05, 0.9, 0.05))
-
-final_fig4 <- (plot_panel_a | plot_panel_b) /
-  bottom_row +
-  plot_layout(heights = c(1.2, 1))
-
-final_fig4
-
-# Save layout
-ggsave(
-  filename = here(dir_307_fig4, "307_fig4.png"),
-  #filename = here(dir_307_fig4, "combined_panel_AB.png"),
-  plot = final_fig4,
-  device = "png",
-  height = 18,
-  width = 14,
-  units = "in",
-  dpi = 300
+#| label: create-fig4-panel-B-NOKEY
+# Panel B: Selected Family Responses to ALAN (Onset & Cessation) - 3 Rows x 2 Columns
+selected_fams <- c(
+  "Corvidae", # expected
+  "Sittidae", # neutral
+  "Cuculidae" # opposite
 )
 
+fam_labels <- c(
+  "Corvidae" = "Expected Relationship: Corvidae",
+  "Sittidae" = "Neutral Relationship: Sittidae",
+  "Cuculidae" = "Opposite Relationship: Cuculidae"
+)
 
+# FX: Gray banner bar spanning the row
+build_banner_panel <- function(text_label) {
+  ggplot() +
+    annotate(
+      "rect",
+      xmin = -Inf,
+      xmax = Inf,
+      ymin = -Inf,
+      ymax = Inf,
+      fill = "grey92",
+      color = NA
+    ) +
+    annotate(
+      "text",
+      x = 0.5,
+      y = 0.5,
+      label = text_label,
+      size = 4.2,
+      fontface = "bold",
+      color = "grey20"
+    ) +
+    theme_void() +
+    theme(
+      plot.margin = margin(t = 6, r = 6, b = 2, l = 6)
+    )
+}
+
+# Limits
+onset_limits <- c(-0.5, 5.0)
+cessation_limits <- c(-5.0, 0.5)
+
+# FX: Single family plot panel
+plot_single_panel <- function(
+  data,
+  f_name,
+  y_limits,
+  col_title = NULL,
+  y_axis_label = NULL,
+  show_x_axis = FALSE
+) {
+  p <- data |>
+    filter(family == f_name) |>
+    ggplot(aes(x = alan, y = fit, color = cloud_cat, fill = cloud_cat)) +
+    geom_hline(
+      yintercept = 0,
+      linetype = "dashed",
+      color = "grey60",
+      linewidth = 0.4
+    ) +
+    geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.2, color = NA) +
+    geom_line(linewidth = 1) +
+    scale_color_manual(values = color_palette) +
+    scale_fill_manual(values = color_palette) +
+    scale_x_continuous(
+      limits = c(-2, 4),
+      breaks = seq(-2, 4, by = 2),
+      expand = c(0, 0)
+    ) +
+    scale_y_continuous(
+      limits = rev(sort(y_limits)),
+      trans = "reverse",
+      expand = c(0, 0)
+    ) +
+    labs(
+      title = col_title,
+      x = if (show_x_axis) "Light Pollution: ln(Radiance + 1)" else NULL,
+      y = y_axis_label,
+      color = "Cloud Cover",
+      fill = "Cloud Cover"
+    ) +
+    theme_classic(base_size = 14) +
+    theme(
+      plot.title = element_text(
+        face = "bold",
+        size = 13,
+        hjust = 0.5,
+        margin = margin(b = 4)
+      ),
+      axis.title.y = element_text(size = 10, margin = margin(r = 5)),
+      axis.title.x = element_text(size = 11, margin = margin(t = 5)),
+      panel.grid.major = element_line(color = "grey92", linewidth = 0.3),
+      panel.grid.minor = element_line(color = "grey96", linewidth = 0.2),
+      plot.margin = margin(t = 4, r = 6, b = 4, l = 6)
+    )
+
+  if (!show_x_axis) {
+    p <- p +
+      theme(
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()
+      )
+  }
+
+  return(p)
+}
+
+# FX: Sunrise/sunset guide panel
+build_y_key_panel <- function(
+  solar_event = "Sunrise",
+  y_limits = c(-2.5, 2.5),
+  fixed_arrow_len = 1.2
+) {
+  y_min <- min(y_limits)
+  y_max <- max(y_limits)
+  y_span <- y_max - y_min
+
+  up_start <- 0.3
+  up_end <- 0.3 + fixed_arrow_len
+
+  down_start <- -0.3
+  down_end <- -0.3 - fixed_arrow_len
+
+  ggplot(data.frame(x = c(0, 1), y = y_limits), aes(x = x, y = y)) +
+    geom_hline(
+      yintercept = 0,
+      linetype = "dashed",
+      color = "grey60",
+      linewidth = 0.4
+    ) +
+    annotate(
+      "text",
+      x = 0.05,
+      y = y_span * 0.015,
+      label = solar_event,
+      hjust = 0,
+      vjust = -0.2,
+      size = 3.2,
+      fontface = "bold",
+      color = "grey20"
+    ) +
+    annotate(
+      "segment",
+      x = 0.2,
+      xend = 0.2,
+      y = up_start,
+      yend = up_end,
+      arrow = arrow(length = unit(0.1, "cm")),
+      color = "grey40",
+      linewidth = 0.4
+    ) +
+    annotate(
+      "text",
+      x = 0.32,
+      y = (up_start + up_end) / 2,
+      label = paste("Hours After\n", solar_event),
+      hjust = 0,
+      size = 2.8,
+      fontface = "italic",
+      color = "grey30"
+    ) +
+    annotate(
+      "segment",
+      x = 0.2,
+      xend = 0.2,
+      y = down_start,
+      yend = down_end,
+      arrow = arrow(length = unit(0.1, "cm")),
+      color = "grey40",
+      linewidth = 0.4
+    ) +
+    annotate(
+      "text",
+      x = 0.32,
+      y = (down_start + down_end) / 2,
+      label = paste("Hours Before\n", solar_event),
+      hjust = 0,
+      size = 2.8,
+      fontface = "italic",
+      color = "grey30"
+    ) +
+    scale_y_continuous(
+      limits = c(y_min, y_max),
+      trans = "reverse",
+      expand = c(0, 0)
+    ) +
+    scale_x_continuous(limits = c(0, 1.2), expand = c(0, 0)) +
+    labs(title = NULL, y = NULL, x = NULL) +
+    theme_void() +
+    theme(plot.margin = margin(t = 15, r = 2, b = 5, l = 2))
+}
+
+# Static key panels for each column
+key_on <- build_y_key_panel("Sunrise", onset_limits)
+key_ev <- build_y_key_panel("Sunset", cessation_limits)
+
+onset_txt <- "Vocal Onset\n(hours relative to sunrise)"
+cess_txt <- "Vocal Cessation\n(hours relative to sunset)"
+
+# Build all panels as individual plot objects
+b1 <- build_banner_panel(fam_labels["Corvidae"])
+p1_on <- plot_single_panel(
+  pred_fam_on,
+  "Corvidae",
+  onset_limits,
+  y_axis_label = onset_txt,
+  show_x_axis = FALSE
+)
+p1_ev <- plot_single_panel(
+  pred_fam_ev,
+  "Corvidae",
+  cessation_limits,
+  y_axis_label = cess_txt,
+  show_x_axis = FALSE
+)
+
+b2 <- build_banner_panel(fam_labels["Sittidae"])
+p2_on <- plot_single_panel(
+  pred_fam_on,
+  "Sittidae",
+  onset_limits,
+  y_axis_label = onset_txt,
+  show_x_axis = FALSE
+)
+p2_ev <- plot_single_panel(
+  pred_fam_ev,
+  "Sittidae",
+  cessation_limits,
+  y_axis_label = cess_txt,
+  show_x_axis = FALSE
+)
+
+b3 <- build_banner_panel(fam_labels["Cuculidae"])
+p3_on <- plot_single_panel(
+  pred_fam_on,
+  "Cuculidae",
+  onset_limits,
+  y_axis_label = onset_txt,
+  show_x_axis = TRUE
+) +
+  theme(axis.title.x = element_blank())
+
+p3_ev <- plot_single_panel(
+  pred_fam_ev,
+  "Cuculidae",
+  cessation_limits,
+  y_axis_label = cess_txt,
+  show_x_axis = TRUE
+) +
+  theme(axis.title.x = element_blank())
+
+x_label_panel <- ggplot() +
+  annotate(
+    "text",
+    x = 0.5,
+    y = 0.5,
+    label = "Light Pollution: ln(Radiance + 1)",
+    size = 4,
+    fontface = "plain"
+  ) +
+  theme_void() +
+  theme(plot.margin = margin(t = 2, b = 2))
+
+# Layout design matrix:
+# Rows 1, 3, 5 are banners spanning all 4 columns
+# Rows 2, 4, 6 are the Onset plot, Onset key, Cessation plot, Cessation key
+design <- "
+  AA
+  BC
+  DD
+  EF
+  GG
+  HI
+  JJ
+"
+
+plot_panel_b_nokey <- wrap_plots(
+  A = b1,
+  B = p1_on,
+  C = p1_ev,
+  D = b2,
+  E = p2_on,
+  F = p2_ev,
+  G = b3,
+  H = p3_on,
+  I = p3_ev,
+  J = x_label_panel,
+  design = design,
+  widths = c(4, 4),
+  heights = c(0.18, 1),
+  guides = "collect"
+) &
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 11)
+  )
+
+plot_panel_b_nokey
+```
+
+```{r}
+#| label: select-panel-b
+##plot_panel_b_final <- plot_panel_b_hori
+##plot_panel_b_final <- plot_panel_b_vert
+plot_panel_b_final <- plot_panel_b_nokey
+
+# add plot title
+plot_panel_b_final <- plot_panel_b_final +
+  plot_annotation(
+    title = "B) Selected Diurnal Family Responses\nto Light Pollution and Cloud Cover",
+    theme = theme(
+      plot.title = element_text(size = 16, hjust = 0, margin = margin(b = 10))
+    )
+  )
+```
+
+```{r}
+#| label: save-fig4-individually
 # Save individual panels
 # Panel A - Diurnal Family Coefficients
 ggsave(
@@ -990,31 +1484,40 @@ ggsave(
   dpi = 300
 )
 
-# Panel B - Nocturnal Predicted ALAN Probability
+# Panel B - Family Predicted ALAN Response
 ggsave(
   filename = here(dir_307_fig4, "307_fig4_panelB.png"),
-  plot = plot_panel_b,
+  plot = plot_panel_b_final,
   device = "png",
   height = 9,
   width = 9,
   units = "in",
   dpi = 300
 )
+```
 
-# Panel C - Family Predicted ALAN Response
+```{r}
+#| label: save-fig4-combined
+# Panels A & B side-by-side
+final_fig4 <- (wrap_elements(plot_panel_a) |
+  wrap_elements(plot_panel_b_final)) +
+  plot_layout(widths = c(1.3, 1))
+final_fig4
+
+# Save layout
 ggsave(
-  filename = here(dir_307_fig4, "307_fig4_panelC.png"),
-  plot = plot_panel_c_final,
+  filename = here(dir_307_fig4, "307_fig4.png"),
+  plot = final_fig4,
   device = "png",
-  height = 9,
-  width = 14,
+  height = 10,
+  width = 12,
   units = "in",
   dpi = 300
 )
 ```
 
 
-## Panel D - Noc Families
+## Fig. 5 - Nocturnal Families
 
 Grab a couple intesting nocturnal families
 
@@ -1028,9 +1531,99 @@ Australian owlet-nightjar - expected
 eurasian nightjar/common poorwill - neutral
 Eastern Whippoorwill - opposite
 
+
+"Predictions for nocturnal vocal detection probability were evaluated under dark (5th percentile ALAN) and bright (95th percentile ALAN) conditions at mean cloud cover."
+
 ```{r}
-#| label: create-panel-D
-# Panel D: Selected Species Responses to ALAN (Nocturnal)
+#| label: create-fig5-panel-A
+# Panel A: Dark vs Bright Light Pollution probabilities (Ordered by dark levels)
+
+# Setup data in long format
+coef_panel_a_long <- grid_noc |>
+  left_join(sp_num_noc, by = "common_name")
+
+# Setup data in wide format - order by dark conditions
+coef_panel_a_wide <- grid_noc |>
+  select(common_name, light_condition, prob_det) |>
+  pivot_wider(names_from = light_condition, values_from = prob_det) |>
+  rename(Dark = `Low`, Bright = `High`) |>
+  # Arrange species continuously from lowest detection in the dark to highest
+  arrange(Dark)
+
+# Re-level common_name factor
+coef_panel_a_long <- coef_panel_a_long |>
+  mutate(
+    common_name = factor(common_name, levels = coef_panel_a_wide$common_name)
+  )
+
+coef_panel_a_wide <- coef_panel_a_wide |>
+  mutate(
+    common_name = factor(common_name, levels = coef_panel_a_wide$common_name)
+  )
+
+# Setup background grey/white row shading
+n_species <- nrow(coef_panel_a_wide)
+zebra_df_b <- data.frame(
+  ymin = seq(0.5, n_species - 0.5, by = 2),
+  ymax = seq(1.5, n_species + 0.5, by = 2)
+)
+
+# Plot Panel A
+plot_fig5_panel_a <- ggplot() +
+  # Row shading
+  geom_rect(
+    data = zebra_df_b,
+    aes(xmin = -Inf, xmax = Inf, ymin = ymin, ymax = ymax),
+    fill = "grey96",
+    color = NA
+  ) +
+  # Dumbbell segment connecting Dark and Bright predictions
+  geom_segment(
+    data = coef_panel_a_wide,
+    aes(y = common_name, yend = common_name, x = Dark, xend = Bright),
+    color = "grey70",
+    linewidth = 0.5
+  ) +
+  # Detection probability points
+  geom_point(
+    data = coef_panel_a_long,
+    aes(x = prob_det, y = common_name, color = light_condition, size = n_vocs),
+    alpha = 0.85
+  ) +
+  # Colors for Light pollution levels
+  scale_color_manual(values = color_palette) +
+  # Scale size of dots
+  scale_size(
+    range = c(1, 7.5),
+    name = "Number of\nVocalizations",
+    breaks = c(1500, 10000, 35000, 100000),
+    labels = scales::label_comma()
+  ) +
+  # Format X-axis as clean %s
+  scale_x_continuous(
+    labels = scales::label_percent(accuracy = 1),
+    limits = c(0, 1)
+  ) +
+  labs(
+    title = "A) Nocturnal Species-Level\nPredicted Vocalization Probability",
+    x = "Probability of Vocalization",
+    y = "Species",
+    color = "Level of\nLight Pollution"
+  ) +
+  theme_classic(base_size = 18) +
+  theme(
+    legend.position = "right",
+    axis.text.y = element_text(size = 12, color = "black"),
+    panel.grid.major = element_blank()
+  )
+
+print(plot_fig5_panel_a)
+```
+
+
+```{r}
+#| label: create-fig5-panel-b
+# Panel B: Selected Species Responses to ALAN (Nocturnal)
 
 library(ggh4x)
 
@@ -1084,8 +1677,8 @@ plot_noc_sp <- ggplot(
   scale_color_manual(values = color_palette) +
   scale_fill_manual(values = color_palette) +
   labs(
-    #title = "Nocturnal Species Predicted Responses\nto Light Pollution and Cloud Cover",
-    x = "Light Pollution",
+    title = "B) Selected Nocturnal Species Responses\nto Light Pollution and Cloud Cover",
+    x = "Light Pollution: ln(Radiance + 1)",
     y = "Probability of Vocalization",
     color = "Cloud cover",
     fill = "Cloud cover"
@@ -1101,16 +1694,42 @@ plot_noc_sp <- ggplot(
 print(plot_noc_sp)
 ```
 
-
 ```{r}
-#| label: save-panel-D
-# Save layout
+#| label: save-fig5-individually
+# Panel A - Nocturnal Predicted ALAN Probability
 ggsave(
-  filename = here(dir_307_fig4, "307_fig4_panelD.png"),
+  filename = here(dir_307_fig4, "307_fig5_panelA.png"),
+  plot = plot_fig5_panel_a,
+  device = "png",
+  height = 9,
+  width = 9,
+  units = "in",
+  dpi = 300
+)
+
+# Save panel B
+ggsave(
+  filename = here(dir_307_fig4, "307_fig5_panelB.png"),
   plot = plot_noc_sp,
   device = "png",
   height = 9,
-  width = 7,
+  width = 8,
+  units = "in",
+  dpi = 300
+)
+```
+
+```{r}
+#| label: save-fig5-combined
+final_fig5 <- plot_fig5_panel_a + plot_noc_sp
+
+# Save combined fig5
+ggsave(
+  filename = here(dir_307_fig4, "307_fig5.png"),
+  plot = final_fig5,
+  device = "png",
+  height = 10,
+  width = 18,
   units = "in",
   dpi = 300
 )
