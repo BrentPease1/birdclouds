@@ -1,3 +1,16 @@
+################################################################################
+# title: 305b_model_nocturnal.R
+# subtitle: Clouds modulate light-pollution effects on avian behavior
+# toc: true
+# format:
+#  html:
+#    embed-resources: true
+#    cache: false
+# date: 2026-09-12 # last-modified
+# date-format: "yyyy-MM-dd"
+# abstract: This script creates models for nocturnal vocalization probability
+################################################################################
+
 ### Load libraries:
 library(data.table)
 library(tidyverse)
@@ -23,9 +36,6 @@ noc_final_50$alan_sc <- scale(noc_final_50$alan)
 noc_final_50$cloud_sc <- scale(noc_final_50$nightly_cloud_cover_percent)
 noc_final_50$precip_sc <- scale(noc_final_50$nightly_precipitation_mm)
 
-
-# Species differ in the linear ALAN-cloud interaction  -->   CONVERGED
-#mod_step5
 
 # 0.5 degree grid
 mod_noc_05 <- glmmTMB(
@@ -57,5 +67,5 @@ mod_noc_50 <- glmmTMB(
 saveRDS(mod_noc_50, file = here(dir_305_models, "305j_mod_noc_50.rds"))
 
 ## look at final model
-summary(mod_noc_50)
 mod_noc_50 <- readRDS(here(dir_305_models, "305j_mod_noc_50.rds"))
+summary(mod_noc_50)

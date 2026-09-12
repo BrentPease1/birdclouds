@@ -1,5 +1,16 @@
+---
+title: 105_moon_calculate_intensity.qmd
+subtitle: Clouds modulate light-pollution effects on avian behavior
+toc: true
+format:
+  html:
+    embed-resources: false
+    cache: false
+abstract: This script gets the value of moonlight intensity data for every hour of the study period at each station.
+date: 2026-09-12 # last modified
+date-format: "yyyy-MM-dd"
+---
 
-This script gets the value of moonlight intensity data for every hour of the study period at each station.
 
 # set up env
 ```{r}

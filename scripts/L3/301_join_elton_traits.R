@@ -1,10 +1,14 @@
-#Lines 1-350 from 301_DataAnalysis_Processing.R
-# I added lines to improve reading & saving data with .rds files
-
 ################################################################################
-### Gilbert X Pease - Bird Cloud Project
-### Processing Data for Analysis
-### First analytical step, pre-modeling of diurnal and nocturnal species
+# title: 301_join_elton_traits.R
+# subtitle: Clouds modulate light-pollution effects on avian behavior
+# toc: true
+# format:
+#  html:
+#    embed-resources: true
+#    cache: false
+# date: 2026-09-12 # last-modified
+# date-format: "yyyy-MM-dd"
+# abstract: This script grabs Elton Traits data and joins to our avian vocs data
 ################################################################################
 
 ### Install Packages, Clean up Workspace, Load Libraries:
@@ -44,10 +48,6 @@ load(here("data", "L2", "final_nocturnal.RData"))
 load(here("data", "L2", "final_diurnal_first_onset.RData"))
 load(here("data", "L2", "final_diurnal_ev_ces.RData"))
 
-# #Analysis data (from data prep-pull team):
-# load("D:/BirdCloudProject/Data/Final/final_nocturnal.RData")
-# load("D:/BirdCloudProject/Data/Final/final_diurnal_first_onset.RData")
-# load("D:/BirdCloudProject/Data/Final/final_diurnal_ev_ces.RData")
 
 ### Add some BirdWeather data back to datasets (nocturnal: sci_name and sp_id;
 ### diurnal: sp_id).
@@ -240,12 +240,6 @@ to_assess <- sum(is.na(sp_traits_final$activity_period)) # now 16 missing --> ma
 to_assess <- sp_traits_final |>
   dplyr::filter(is.na(activity_period))
 
-###Save out and manually fill in:
-# fwrite(
-#   to_assess,
-#   "Data/Final/to_assess_manually_May2026.csv",
-#   row.names = FALSE
-# )
 
 fwrite(
   to_assess,
@@ -364,9 +358,6 @@ diurn_ev_sp <- diurn_ev_data |>
   dplyr::distinct() #n = 436 sp
 
 # # Read out the data:
-# fwrite(noc_data, "Data/Final/noc_data.csv", row.names = FALSE)
-# fwrite(diurn_on_data, "Data/Final/diurn_on_data.csv", row.names = FALSE)
-# fwrite(diurn_ev_data, "Data/Final/diurn_ev_data.csv", row.names = FALSE)
 
 saveRDS(
   diurn_on_data,

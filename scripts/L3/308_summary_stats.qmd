@@ -1,21 +1,15 @@
 ---
 title: 308_summary_stats.qmd
-author: 
-    - name: Karina Torres
-      role: Author
-      affiliation: Southern Illinois University
-      url: github.com/KTorres23
+subtitle: Clouds modulate light-pollution effects on avian behavior
 toc: true
 format:
   html:
     embed-resources: false
     cache: false
-abstract: This script puts together some basic summary statistics of the final data used for modelling.
-date: 2026-09-07 # last modified
+abstract: This script puts together some basic summary statistics of the data used for modelling.
+date: 2026-09-12 # last modified
 date-format: "yyyy-MM-dd"
 ---
-
-nocturnal data is unchanged
 
 ```{r}
 #| label: setup-env
@@ -25,7 +19,6 @@ here::i_am("scripts/L3/308_summary_stats.qmd")
 ```
 
 # Read data
-
 
 ```{r}
 #| label: read-data

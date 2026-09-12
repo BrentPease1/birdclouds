@@ -1,5 +1,16 @@
-## Create grid for random effects structure:
+################################################################################
+# title: 303_make_grid_cells.R
+# subtitle: Clouds modulate light-pollution effects on avian behavior
+# toc: true
+# format:
+#  html:
+#    embed-resources: true
+#    cache: false
+# date: 2026-09-12 # last-modified
+# date-format: "yyyy-MM-dd"
+# abstract: This script creates grid cells for random effects structure
 ## -- note: you must run twice to specify the grid size (just comment code in/out)
+################################################################################
 
 library(sf)
 library(dplyr)
@@ -160,13 +171,6 @@ diurn_ev_final$ev_ces <- (diurn_ev_final$ev_ces / 60)
 
 
 ### Save out final datasets, with all features and variables.
-
-# ## Diurnal:
-# fwrite(diurn_on_final, "Data/Final/diurn_on_final.csv", row.names = FALSE)
-# fwrite(diurn_ev_final, "Data/Final/diurn_ev_final.csv", row.names = FALSE)
-
-# ## Nocturnal:
-# fwrite(noc_final, "Data/Final/noc_final.csv", row.names = FALSE)
 
 #### 0.5 degree grid cells
 saveRDS(

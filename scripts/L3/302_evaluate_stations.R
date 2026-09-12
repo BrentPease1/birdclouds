@@ -1,4 +1,15 @@
-# Evaluate stations to keep only stationary stations
+################################################################################
+# title: 302_evaluate_stations.R
+# subtitle: Clouds modulate light-pollution effects on avian behavior
+# toc: true
+# format:
+#  html:
+#    embed-resources: true
+#    cache: false
+# date: 2026-09-12 # last-modified
+# date-format: "yyyy-MM-dd"
+# abstract: This script evalutes stations to keep only stationary stations
+################################################################################
 
 library(sf)
 library(dplyr)
@@ -7,6 +18,7 @@ library(tidyverse)
 library(here)
 here::i_am("scripts/L3/302_evaluate_stations.R")
 
+## read in data
 diurn_on_data <- readRDS(
   here("data", "L3", "301_elton_traits", "301a_diurn_on_data.rds")
 )
@@ -16,11 +28,6 @@ diurn_ev_data <- readRDS(
 noc_data <- readRDS(
   here("data", "L3", "301_elton_traits", "301c_noc_data.rds")
 )
-
-## Read in data:
-# noc_data <- fread("Data/Final/noc_data.csv")
-# diurn_on_data <- fread("Data/Final/diurn_on_data.csv")
-# diurn_ev_data <- fread("Data/Final/diurn_ev_data.csv")
 
 ## Ensure each station_id has only one coordinate assigned to it.
 ## To do this, group by station (station_id), take median of lat lons associated

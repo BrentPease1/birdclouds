@@ -1,5 +1,16 @@
-### Filter the grid cells to only include those
-### with certain # by the quantile from 300_analyze_models.R
+################################################################################
+# title: 304_filter_grid_data_final.R
+# subtitle: Clouds modulate light-pollution effects on avian behavior
+# toc: true
+# format:
+#  html:
+#    embed-resources: true
+#    cache: false
+# date: 2026-09-12 # last-modified
+# date-format: "yyyy-MM-dd"
+# abstract: This script filters grid cells to include only those with a certain
+#           number of vocs by a quantile
+################################################################################
 
 library(tidyverse)
 library(here)

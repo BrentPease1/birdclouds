@@ -1,3 +1,16 @@
+################################################################################
+# title: 300_create_cloud_world_map.R
+# subtitle: Clouds modulate light-pollution effects on avian behavior
+# toc: true
+# format:
+#  html:
+#    embed-resources: true
+#    cache: false
+# date: 2026-09-12 # last-modified
+# date-format: "yyyy-MM-dd"
+# abstract: This script creates world map of cloud cover for Fig 2B
+################################################################################
+
 library(terra)
 library(sf)
 library(ggplot2)
@@ -102,7 +115,7 @@ ggplot() +
 
 # Save output
 ggsave(
-  "data/L3/300_world_cloud_cover_map.png",
+  "data/L3/300_fig2b_world_cloud_cover_map.png",
   width = 10,
   height = 6,
   dpi = 300

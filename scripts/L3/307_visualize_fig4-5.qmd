@@ -1,16 +1,12 @@
 ---
 title: 307_visualize_fig4-5.qmd
-author: 
-    - name: Karina Torres
-      role: Author
-      affiliation: Southern Illinois University
-      url: github.com/KTorres23
+subtitle: Clouds modulate light-pollution effects on avian behavior
 toc: true
 format:
   html:
     embed-resources: false
     cache: false
-abstract: This script visualizes the coefficients of responses to ALAN across all families/species and selected families/species
+abstract: This script visualizes Figures 4, 5, and Supp Figs. 1 and 2
 date: 2026-09-12 # last modified
 date-format: "yyyy-MM-dd"
 ---
@@ -20,7 +16,15 @@ date-format: "yyyy-MM-dd"
 
 ```{r}
 #| label: setup-env
-pacman::p_load(data.table, tidyverse, here, glmmTMB, patchwork, MetBrewer)
+pacman::p_load(
+  data.table,
+  tidyverse,
+  here,
+  glmmTMB,
+  patchwork,
+  MetBrewer,
+  ggh4x
+)
 
 here::i_am("scripts/L3/307_visualize_select_fig4.qmd")
 ```
@@ -1107,9 +1111,7 @@ p3_ev <- plot_single_panel(
   show_x_axis = TRUE
 )
 
-# Layout design matrix:
-# Rows 1, 3, 5 are banners spanning all 4 columns
-# Rows 2, 4, 6 are the Onset plot, Onset key, Cessation plot, Cessation key
+# Layout design matrix
 design <- "
   AAAA
   BCDE
@@ -1416,9 +1418,7 @@ x_label_panel <- ggplot() +
   theme_void() +
   theme(plot.margin = margin(t = 2, b = 2))
 
-# Layout design matrix:
-# Rows 1, 3, 5 are banners spanning all 4 columns
-# Rows 2, 4, 6 are the Onset plot, Onset key, Cessation plot, Cessation key
+# Layout design matrix
 design <- "
   AA
   BC
@@ -1458,7 +1458,7 @@ plot_panel_b_nokey
 #| label: select-panel-b
 ##plot_panel_b_final <- plot_panel_b_hori
 ##plot_panel_b_final <- plot_panel_b_vert
-plot_panel_b_final <- plot_panel_b_nokey
+plot_panel_b_final <- plot_panel_b_nokey # selected for final visualization
 
 # add plot title
 plot_panel_b_final <- plot_panel_b_final +
@@ -1531,8 +1531,6 @@ Australian owlet-nightjar - expected
 eurasian nightjar/common poorwill - neutral
 Eastern Whippoorwill - opposite
 
-
-"Predictions for nocturnal vocal detection probability were evaluated under dark (5th percentile ALAN) and bright (95th percentile ALAN) conditions at mean cloud cover."
 
 ```{r}
 #| label: create-fig5-panel-A
@@ -1624,8 +1622,6 @@ print(plot_fig5_panel_a)
 ```{r}
 #| label: create-fig5-panel-b
 # Panel B: Selected Species Responses to ALAN (Nocturnal)
-
-library(ggh4x)
 
 # Specify species based on expected, neutral, and opposite responses to ALAN
 species_rel_map <- c(
@@ -1740,7 +1736,7 @@ ggsave(
 Calculate predictions to support results text
 
 Onset advancement by family...
-These numbers are slightly smaller than PEase & Gilbert 2025 because these results use 5th and 95th percentiles of ALAN rather than min/max. Also, the preds vary by family
+These numbers are slightly smaller than Pease & Gilbert 2025 because these results use 5th and 95th percentiles of ALAN rather than min/max. Also, the preds vary by family
 ```{r}
 #| label: calc-ALAN-cld-preds
 # Calculate ALAN quantiles (5th, 95th)

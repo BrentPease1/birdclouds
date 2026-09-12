@@ -1,4 +1,15 @@
-
+---
+title: 109_moon_summarize_intensity.qmd
+subtitle: Clouds modulate light-pollution effects on avian behavior
+toc: true
+format:
+  html:
+    embed-resources: false
+    cache: false
+abstract: This script summarizes moonlight data
+date: 2026-09-12 # last modified
+date-format: "yyyy-MM-dd"
+---
 
 # Set up environment
 
@@ -25,7 +36,6 @@ Script logic:
 
 Hourly moonlight data was extracted for each station_id.
 
-We had discussed some ideas for summarizing moonlight intensity.
 I summarized multiple metrics and we can justify one or pick one with AIC
 
 1. Join moonlight data to night_id (join_by rounded night_start / night_end)
@@ -111,15 +121,15 @@ ProcessCurrentBatch <- function(batch) {
       #  logic from MoonShineR
       midnight_moonlight = {
         # Find the time halfway between night start and end
-        mid = night_start + (night_end - night_start) / 2
+        mid <- night_start + (night_end - night_start) / 2
 
         # Calculate time difference for all available moonlight data rows
-        diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+        diffs <- abs(difftime(datetime_utc, mid, units = "hours"))
 
         # Find lowest time difference (closest to midpoint)
         # This addresses cases where midpoint isn't available because midpoint
         # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
-        vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+        vals <- moonlight[diffs == min(diffs, na.rm = TRUE)]
 
         # CATCH NA VALUES FROM WRONG NIGHT_IDs & >24-hr NIGHTS ISSUE - resolved :]
         if (length(vals) > 0) {
@@ -218,18 +228,18 @@ moonlight |>
       # Find the time halfway between night start and end
       # Note that there might not be data for the hours of night start & end
       # because it was not quite yet night, according to moonlight calculation logic from MoonShineR
-      mid = as.POSIXct("2024-04-01 16:00:00", tz = "UTC") +
+      mid <- as.POSIXct("2024-04-01 16:00:00", tz = "UTC") +
         (as.POSIXct("2024-04-02 04:00:00", tz = "UTC") -
           as.POSIXct("2024-04-01 16:00:00", tz = "UTC")) /
           2
 
       # Calculate time difference for all available moonlight data rows
-      diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+      diffs <- abs(difftime(datetime_utc, mid, units = "hours"))
 
       # Find lowest time difference (closest to midpoint)
       # This addresses cases where midpoint isn't available because midpoint
       # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
-      vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+      vals <- moonlight[diffs == min(diffs, na.rm = TRUE)]
 
       # CATCH NA VALUES FROM WRONG NIGHT_IDs & >24-hr NIGHTS ISSUE - resolved :]
       if (length(vals) > 0) {
@@ -270,17 +280,17 @@ moonlight |>
       # Find the time halfway between night start and end
       # Note that there might not be data for the hours of night start & end
       # because it was not quite yet night, according to moonlight calculation logic from MoonShineR
-      mid = as.POSIXct("2024-11-05 11:00:00", tz = "UTC") +
+      mid <- as.POSIXct("2024-11-05 11:00:00", tz = "UTC") +
         (as.POSIXct("2024-11-05 23:00:00", tz = "UTC") -
           as.POSIXct("2024-11-05 11:00:00", tz = "UTC")) /
           2
       # Calculate time difference for all available moonlight data rows
-      diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+      diffs <- abs(difftime(datetime_utc, mid, units = "hours"))
 
       # Find lowest time difference (closest to midpoint)
       # This addresses cases where midpoint isn't available because midpoint
       # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
-      vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+      vals <- moonlight[diffs == min(diffs, na.rm = TRUE)]
 
       # CATCH NA VALUES FROM WRONG NIGHT_IDs & >24-hr NIGHTS ISSUE - resolved :]
       if (length(vals) > 0) {
@@ -325,17 +335,17 @@ moonlight |>
       # Find the time halfway between night start and end
       # Note that there might not be data for the hours of night start & end
       # because it was not quite yet night, according to moonlight calculation logic from MoonShineR
-      mid = as.POSIXct("2025-03-02 01:00:00", tz = "UTC") +
+      mid <- as.POSIXct("2025-03-02 01:00:00", tz = "UTC") +
         (as.POSIXct("2025-03-02 13:00:00", tz = "UTC") -
           as.POSIXct("2025-03-02 01:00:00", tz = "UTC")) /
           2
       # Calculate time difference for all available moonlight data rows
-      diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+      diffs <- abs(difftime(datetime_utc, mid, units = "hours"))
 
       # Find lowest time difference (closest to midpoint)
       # This addresses cases where midpoint isn't available because midpoint
       # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
-      vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+      vals <- moonlight[diffs == min(diffs, na.rm = TRUE)]
 
       # CATCH NA VALUES FROM WRONG NIGHT_IDs & >24-hr NIGHTS ISSUE - resolved :]
       if (length(vals) > 0) {
@@ -376,17 +386,17 @@ moonlight |>
       # Find the time halfway between night start and end
       # Note that there might not be data for the hours of night start & end
       # because it was not quite yet night, according to moonlight calculation logic from MoonShineR
-      mid = as.POSIXct("2024-10-08 23:00:00", tz = "UTC") +
+      mid <- as.POSIXct("2024-10-08 23:00:00", tz = "UTC") +
         (as.POSIXct("2024-10-09 12:00:00", tz = "UTC") -
           as.POSIXct("2024-10-08 23:00:00", tz = "UTC")) /
           2
       # Calculate time difference for all available moonlight data rows
-      diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+      diffs <- abs(difftime(datetime_utc, mid, units = "hours"))
 
       # Find lowest time difference (closest to midpoint)
       # This addresses cases where midpoint isn't available because midpoint
       # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
-      vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+      vals <- moonlight[diffs == min(diffs, na.rm = TRUE)]
 
       # --- old logic [start] ---
       # Identify the target hours from midpoint time
@@ -513,18 +523,18 @@ summarize(
     # Find the time halfway between night start and end
     # Note that there might not be data for the hours of night start & end
     # because it was not quite yet night, according to moonlight calculation logic from MoonShineR
-    mid = as.POSIXct("2024-10-16 11:00:00", tz = "UTC") +
+    mid <- as.POSIXct("2024-10-16 11:00:00", tz = "UTC") +
       (as.POSIXct("2024-10-16 23:00:00", tz = "UTC") -
         as.POSIXct("2024-10-16 11:00:00", tz = "UTC")) /
         2
 
     # Calculate time difference for all available moonlight data rows
-    diffs = abs(difftime(datetime_utc, mid, units = "hours"))
+    diffs <- abs(difftime(datetime_utc, mid, units = "hours"))
 
     # Find lowest time difference (closest to midpoint)
     # This addresses cases where midpoint isn't available because midpoint
     # occurred at a time that still had daylight, according to moonlight calculation logic from MoonShineR
-    vals = moonlight[diffs == min(diffs, na.rm = TRUE)]
+    vals <- moonlight[diffs == min(diffs, na.rm = TRUE)]
 
     # --- old logic [start] ---
     # Identify the target hours from midpoint time

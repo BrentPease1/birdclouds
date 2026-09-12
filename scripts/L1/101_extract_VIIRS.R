@@ -1,3 +1,15 @@
+################################################################################
+# title: 101_extract_VIIRS.R
+# subtitle: Clouds modulate light-pollution effects on avian behavior
+# toc: true
+# format:
+#  html:
+#    embed-resources: true
+# date: 2026-09-12 # last-modified
+# date-format: "yyyy-MM-dd"
+# abstract: This script extracts monthly VIIRS data for each station
+#            across the study period.
+################################################################################
 # This script repurposes a script from the ALAN paper, specifically the following
 # https://github.com/BrentPease1/alan/blob/main/Scripts/102_data-prep_extract_viirs.R
 # to extract monthly VIIRS data for each station across the study period.
@@ -49,7 +61,7 @@ pacman::p_load(here, tidyverse, data.table, lubridate, sf, terra, rworldmap)
 rm(list = ls())
 
 setDTthreads(0)
-overwrite = T
+overwrite <- T
 
 
 here::i_am("scripts/101_extract_VIIRS.R")

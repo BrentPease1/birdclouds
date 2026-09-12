@@ -1,6 +1,18 @@
-# In the OPENMETEO station_batches script, the stations were accidentally
-# given a new station_id using the `row_number()` function
-# This script fixes this mistake for the openmeteo data.
+################################################################################
+# title: 104_openmeteo_fix_stations.R
+# subtitle: Clouds modulate light-pollution effects on avian behavior
+# toc: true
+# format:
+#  html:
+#    embed-resources: true
+#    cache: false
+# date: 2026-09-12 # last-modified
+# date-format: "yyyy-MM-dd"
+# abstract: This script fixes an error from script 102.
+## In the OPENMETEO station_batches script, the stations were accidentally
+## given a new station_id using the `row_number()` function
+## This script fixes this mistake for the openmeteo data.
+################################################################################
 
 library(tidyverse)
 library(here)

@@ -1,10 +1,12 @@
 ---
 title: 107_openmeteo_summarize_data_diurnal.qmd
+subtitle: Clouds modulate light-pollution effects on avian behavior
 toc: true
 format:
- html:
-   embed-resources: true
-date: 2026-03-16 # last-modified
+  html:
+    embed-resources: false
+    cache: false
+date: 2026-09-12 # last-modified
 date-format: "yyyy-MM-dd"
 abstract: This script summarizes weather data from the openmeteo API
           for each BirdWeather station, using 3hr buffers around sunset
@@ -31,25 +33,6 @@ here::i_am("scripts/L1/107_openmeteo_summarize_data_diurnal.qmd")
 
 
 # Diurnal data
-
-The time window for the diurnal analysis is a bit shorter since the response variable is time of earliest detection from sunrise (morning) and time of latest detection from sunset (evening). 
-Brent and I decided that we should summarise cloud cover in a 3-hr time window around sunrise and sunset.
-
-So, for each station_id, lat, lon, and date, you'll use suncalc to retrieve sunrise & sunset times.
-
-If, for example, sunrise is at 7:45AM, the hour of sunrise would be 7; you'd filter the weather data to the hours of 6, 7, and 8, and calculate the average. You can use the lubridate::hour() function to quickly grab the hour for a date-time column. 
-
-As a sanity check, you should be getting a table with ~2.8 million rows (if you have wide format with separate columns for sunrise and sunset cloud cover), or ~6 million rows (if you have long format)
-
-You'll then join to the prepped diurnal voc data, joining on station ID and date
-
-
-**my notes**
-
-* diurnal has `first_onset` and `median_dawn`
-  * `first_onset`  = Morning onset: time of first detection - local sunrise 
-  * `median_dawn` = Morning median: time of 50% detection - local sunrise
-
 
 ## Read station data
 

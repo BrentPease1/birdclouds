@@ -1,7 +1,14 @@
 ################################################################################
-### Gilbert X Pease - Bird Cloud Project
-### Data Visualization, Main Results - Figure 3
-### Diurnal and Nocturnal Combined
+# title: 306_visualize_fig3.R
+# subtitle: Clouds modulate light-pollution effects on avian behavior
+# toc: true
+# format:
+#  html:
+#    embed-resources: true
+#    cache: false
+# date: 2026-09-12 # last-modified
+# date-format: "yyyy-MM-dd"
+# abstract: This script visualizes Figure 3
 ################################################################################
 
 ### Clear workspace and clean up memory:
@@ -62,7 +69,7 @@ cld.sca.on <- scale(diurn_on$sunrise_cloud_cover_percent)
 precip.sca.on <- scale(diurn_on$sunrise_precipitation_mm)
 
 alan.sca.ev <- scale(log1p(diurn_ev$avg_rad))
-cld.sca.ev <- scale(diurn_ev$sunset_cloud_cover_percent) #Had an error here! Fixed.
+cld.sca.ev <- scale(diurn_ev$sunset_cloud_cover_percent)
 precip.sca.ev <- scale(diurn_ev$sunset_precipitation_mm)
 
 alan.sca.noc <- scale(log1p(noc$avg_rad))
@@ -214,11 +221,6 @@ plot_on <-
     data = plot_data_on,
     aes(x = alan, y = fit, color = factor(cld_lab))
   ) +
-  # geom_ribbon(aes(ymin = fit - se,
-  #                 ymax = fit + se,
-  #                 fill = factor(cld_lab),
-  #             color = NA,
-  #             alpha = 0.3) +
   # 95% CI
   geom_ribbon(
     aes(ymin = fit - 1.96 * se, ymax = fit + 1.96 * se, fill = factor(cld_lab)),
@@ -290,9 +292,6 @@ plot_ev <-
     data = plot_data_ev,
     aes(x = alan, y = fit, color = factor(cld_lab))
   ) +
-  # geom_ribbon(aes(ymin = fit - se,
-  #                 ymax = fit + se,
-  #                 fill = factor(cld_lab)), color = NA, alpha = 0.3) +
   # 95% CI
   geom_ribbon(
     aes(ymin = fit - 1.96 * se, ymax = fit + 1.96 * se, fill = factor(cld_lab)),
@@ -364,9 +363,6 @@ plot_noc <-
     data = plot_data_noc,
     aes(x = alan, y = fit, color = factor(cld_lab))
   ) +
-  # geom_ribbon(aes(ymin = fit - se,
-  #                 ymax = fit + se,
-  #                 fill = factor(cld_lab)), color = NA, alpha = 0.3) +
   geom_ribbon(
     aes(ymin = lwr, ymax = upr, fill = factor(cld_lab)),
     color = NA,
@@ -586,7 +582,7 @@ plot_data_on |>
   ###filter for 5th, 95th percentiles ALAN
   filter(alan_sc %in% c(closest_p05, closest_p95)) |>
   mutate(alan_cat = ifelse(alan_sc == min(alan_sc), "Dark", "Light")) |>
-  ###filter for min/max ALAN
+  ###filter for min/max ALAN (not used)
   #filter(alan_sc == min(alan_sc) | alan_sc == max(alan_sc)) |>
   #mutate(alan_cat = ifelse(alan_sc == min(alan_sc), "Dark", "Light")) |>
   select(cld_lab, alan_cat, fit) |>

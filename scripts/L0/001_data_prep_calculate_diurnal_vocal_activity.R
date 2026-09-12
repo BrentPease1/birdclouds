@@ -1,3 +1,16 @@
+################################################################################
+# title: 001_data_prep_calculate_diurnal_vocal_activity.R
+# subtitle: Clouds modulate light-pollution effects on avian behavior
+# toc: true
+# format:
+#  html:
+#    embed-resources: true
+# date: 2026-09-12 # last-modified
+# date-format: "yyyy-MM-dd"
+# abstract: This script calculates vocalization activity measures for each
+#            diurnal species at each station for each month in the study period
+################################################################################
+
 library(here)
 library(data.table)
 library(lubridate)

@@ -1,3 +1,16 @@
+################################################################################
+# title: 002_data_prep_calculate_nocturnal_vocal_activity.R
+# subtitle: Clouds modulate light-pollution effects on avian behavior
+# toc: true
+# format:
+#  html:
+#    embed-resources: true
+# date: 2026-09-12 # last-modified
+# date-format: "yyyy-MM-dd"
+# abstract: This script calculates vocalization activity measures for each
+#           nocturnal species at each station for each month in the study period
+################################################################################
+
 library(here)
 library(data.table)
 library(lubridate)
@@ -351,13 +364,13 @@ for (c in continents) {
 
     # species holders
     species_holder <- list()
-    species_counter = 0
+    species_counter <- 0
 
     # debugging helper
     # f = focal_spp[1]
 
     for (f in focal_spp) {
-      species_counter = species_counter + 1
+      species_counter <- species_counter + 1
       single_spp_dets <- bw[common_name == f, ]
 
       # doing a bunch of neil stuff
