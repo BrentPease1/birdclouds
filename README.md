@@ -6,15 +6,15 @@
 
 ## Abstract
 
-[This is the abstract placeholder]
+[*This is the abstract placeholder*]
 
 ![Conceptual figure](figure1_nocaptions_V06.png)
 
 ## Repository Directory
 
-* [data](#data) Directory containing data, results, and figures; [organized by Levels (L0-L3)](repo_management_guide.md)
-* [misc](#misc) Directory containing miscellaneous scripts and data
-* [scripts](#scripts) Directory containing scripts; [organized by Levels (L0-L3)](repo_management_guide.md)
+* [`data`](#data) Directory containing data, results, and figures; [organized by Levels (L0-L3)](repo_management_guide.md)
+* [`misc`](#misc) Directory containing miscellaneous scripts and data
+* [`scripts`](#scripts) Directory containing scripts; [organized by Levels (L0-L3)](repo_management_guide.md)
 * [`.gitignore`](.gitignore) Files to ignore for Git commits
 * [`LICENSE`](LICENSE) Licensing rights
 * [`figure1_nocaptions_V06.png`](figure1_nocaptions_V06.png) Conceptual figure

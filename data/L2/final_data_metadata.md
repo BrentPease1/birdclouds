@@ -174,7 +174,7 @@ Rather than having one big dataset with all the values for `first_onset` and `ev
 * `data/L2/final_diurnal_first_onset.RData` - diurnal dataset for `first_onset` vocalizations
 * `data/L2/final_diurnal_ev_ces.RData` - diurnal dataset for `ev_ces` (evening cessation) vocalizations
 
-Because these datasets were too large to share in this repository, the final diurnal datasets with covariate data attached can be accessed at:
+Because these datasets were too large to share in this repository, the final diurnal datasets with covariate data used for modelling can be accessed at: 
 
 * [`data\L3\304_final_data\304d_diurn_on_final_50.rds`](data\L3\304_final_data\304d_diurn_on_final_50.rds)
 * [`data\L3\304_final_data\304e_diurn_ev_final_50.rds`](data\L3\304_final_data\304e_diurn_ev_final_50.rds)
@@ -218,9 +218,9 @@ Column number | Column name | Description of column | Data class of column
 
 ### **final_nocturnal.RData**
 
-`data\L2\final_nocturnal.RData` - is the final dataset used for nocturnal modelling analyses. The dataset contains 24 columns.
+`data\L2\final_nocturnal.RData` - is the final dataset curated prior to nocturnal modelling prep. The dataset contains 24 columns.
 
-Because these datasets were too large to share in this repository, the final nocturnal dataset with covariate data attached can be accessed at: [`data\L3\304_final_data\304f_noc_final_50.rds`](data\L3\304_final_data\304f_noc_final_50.rds)
+Because these datasets were too large to share in this repository, the final nocturnal dataset with covariate data used for modelling can be accessed at: [`data\L3\304_final_data\304f_noc_final_50.rds`](data\L3\304_final_data\304f_noc_final_50.rds)
 
 
 The names, descriptions, and data classes of each column are described below:
