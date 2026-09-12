@@ -3,8 +3,7 @@
 
 This file describes the data contained in the final data files prepared
 for modelling and analyses, including [**final_diurnal.RData**](#final_diurnalrdata) and
-[**final_nocturnal.RData**](#final_nocturnalrdata). Note that the exact same datasets are also
-provided with different extensions: `.csv` or `.rds`
+[**final_nocturnal.RData**](#final_nocturnalrdata). 
 
 **Table of Contents**
 - [final\_data\_metadata.md](#final_data_metadatamd)
@@ -23,7 +22,7 @@ provided with different extensions: `.csv` or `.rds`
 
 VIIRS =  Visible and Infrared Imaging Suite
 
-As in the [ALAN paper](https://github.com/BrentPease1/alan), we used
+As in [Pease & Gilbert, 2025](https://github.com/BrentPease1/alan), we used
 "monthly cloud-free VIIRS Day Night Band (DNB) data publicly available
 for download from the [Earth Observation Group](https://eogdata.mines.edu/products/vnl/)."
 
@@ -170,26 +169,16 @@ Elevation data is returned in meters.
 
 ### **final_diurnal.RData**
 
-*Updated version 04/27/2026* Rather than having one big dataset with all the values for `first_onset` and `ev_ces`, we split the diurnal dataset into two datasets. Both datasets contain nearly all the same columns described below, with the exception that one dataset only has the `first_onset` column and the other only has the `ev_ces` column to differentiate data used for modelling. The `final_diurnal` dataset still exists, with `first_onset`, `ev_ces`, and `median_dawn` contained in a long-format in the columns `category` and `value`. 
+Rather than having one big dataset with all the values for `first_onset` and `ev_ces`, we split the diurnal dataset into two datasets. Both datasets contain nearly all the same columns described below, with the exception that one dataset only has the `first_onset` column and the other only has the `ev_ces` column to differentiate data used for modelling.
 
-* [**final_diurnal_first_onset.RData**](https://saluki.sharepoint.com/:u:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA/final_diurnal_first_onset.RData?csf=1&web=1&e=fxFph4) - diurnal dataset for `first_onset` vocalizations
-* [**final_diurnal_ev_ces.RData**](https://saluki.sharepoint.com/:u:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA/final_diurnal_ev_ces.RData?csf=1&web=1&e=69RKEg) - diurnal dataset for `ev_ces` (evening cessation) vocalizations
+* `data/L2/final_diurnal_first_onset.RData` - diurnal dataset for `first_onset` vocalizations
+* `data/L2/final_diurnal_ev_ces.RData` - diurnal dataset for `ev_ces` (evening cessation) vocalizations
 
-The diurnal datasets can be downloaded from the shared TEAMS folder:
-[`General/data_prep_pull/ANALYSIS_READY_DATA/...`](https://saluki.sharepoint.com/:f:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA?csf=1&web=1&e=e0JODb)
+Because these datasets were too large to share in this repository, the final diurnal datasets with covariate data attached can be accessed at:
 
+* [`data\L3\304_final_data\304d_diurn_on_final_50.rds`](data\L3\304_final_data\304d_diurn_on_final_50.rds)
+* [`data\L3\304_final_data\304e_diurn_ev_final_50.rds`](data\L3\304_final_data\304e_diurn_ev_final_50.rds)
 
-[**final_diurnal.RData**](https://saluki.sharepoint.com/:u:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA/final_diurnal.RData?csf=1&web=1&e=V7p4qz)
-is the final dataset used for diurnal modelling analyses. The dataset contains 30 columns. This dataset includes `first_onset`, `ev_ces`, and `median_dawn` contained in a long-format in the columns `category` and `value`, rather than each metric having its own column as in **final_diurnal_first_onset.RData** and **final_diurnal_ev_ces.RData**
-
-
-Load the data into R with the dataframe object named as `final_diurnal`
-```r
-your_directory <- "specify_file_path"
-load(here(your_directory, "final_diurnal_first_onset.RData")) # Just first_onset data
-load(here(your_directory, "final_diurnal_ev_ces.RData")) # Just ev_ces data
-load(here(your_directory, "final_diurnal.RData")) # first_onset, median_dawn, and ev_ces data
-```
 
 The names, descriptions, and data classes of each column are described below:
 
@@ -208,7 +197,6 @@ Column number | Column name | Description of column | Data class of column
 [11] | `avg_rad` | average radiance; unit = nW/cm^2/sr ([see VIIRS for more info)](#viirs-data)) | (double)
 [12] | `rad_cat` | category of radiance, classified has "low", "med", or "high" ([see VIIRS for more info](#viirs-data)) | (string)
 [13 - `first_onset` dataset] | `first_onset` | [time of first vocalization detection minus time of local sunrise] (time unit is in minutes) | (double)
-[X - only in `final_diurnal` dataset] | `median_dawn` | [time of 50% vocalization detection minus time of local sunrise] (time unit is in minutes) | (double)
 [13 - `ev_ces` dataset] | `ev_ces` | [time of last detection minus time of local sunset] (time unit is in minutes) | (double) 
 [14] | `sunrise` | date and time of sunrise on the [3] `date_time` of the vocalization in UTC timezone | (POSIXct)
 [15] | `sunset` | date and time of sunset on the [3] `date_time` of the vocalization in UTC timezone | (POSIXct)
@@ -230,17 +218,10 @@ Column number | Column name | Description of column | Data class of column
 
 ### **final_nocturnal.RData**
 
-[**final_nocturnal.RData**](https://saluki.sharepoint.com/:f:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA?csf=1&web=1&e=RMAs1a)
-is the final dataset used for nocturnal modelling analyses. The dataset contains 24 columns.
+`data\L2\final_nocturnal.RData` - is the final dataset used for nocturnal modelling analyses. The dataset contains 24 columns.
 
-The nocturnal dataset can be downloaded from the shared TEAMS folder:
-[`General/data_prep_pull/ANALYSIS_READY_DATA/final_diurnal.RData`](https://saluki.sharepoint.com/:f:/r/sites/Test_rxb5sl/Shared%20Documents/General/data_prep_pull/ANALYSIS_READY_DATA?csf=1&web=1&e=RMAs1a)
+Because these datasets were too large to share in this repository, the final nocturnal dataset with covariate data attached can be accessed at: [`data\L3\304_final_data\304f_noc_final_50.rds`](data\L3\304_final_data\304f_noc_final_50.rds)
 
-Load the data into R with the dataframe object named as `final_nocturnal`
-```r
-your_directory <- "specify_file_path"
-load(here(your_directory, "final_nocturnal.RData"))
-```
 
 The names, descriptions, and data classes of each column are described below:
 
@@ -253,7 +234,7 @@ Column number | Column name | Description of column | Data class of column
 [5] | "year" | year of vocalization; extracted from [3] `night_start` | (double)
 [6] | "month" | month of vocalization; extracted from [3] `night_start` | (integer)
 [7] | "common_name" | common name of vocalizing species | (string)
-[8] | "det" | **???? Presence/absence of vocalization?** | (double)
+[8] | "det" | detection / nondetection (presence/absence) of vocalization | (double)
 [9] | "latitude" | latitude coordinate of the station where vocalization was recorded | (double)
 [10] | "longitude" | longitude coordinate of the station where vocalization was recorded | (double)
 [11] | "avg_rad" | average radiance; unit = nW/cm^2/sr ([see VIIRS for more info)](#viirs-data)) | (double)
