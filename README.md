@@ -2,7 +2,10 @@
 
 [Karina M. Torres](https://ktorres23.github.io/), Vimukthi Gunasekera, Katherine M. Godfrey, Isaac T. Grosner, Bailey P. McLaughlin, Lauren R. Benedict, Lucy J. Cheeley, Kaidan W. Capossere, Haley Holiman, Katherine C. Gurin, Claire A. Witthuhn, Chloe Sweet, [Brent S. Pease](https://peaselab.com/), [Neil A. Gilbert](https://www.gilbertecology.com/)*
 
-*Corresponding author
+*Corresponding author contact for questions about code and data (neil.gilbert@okstate.edu)
+
+## Data/code DOI: *placeholder for code DOI*
+## Publication DOI: *placeholder for paper pub DOI*
 
 ## Abstract
 
