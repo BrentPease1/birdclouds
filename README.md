@@ -4,8 +4,8 @@
 
 *Corresponding author contact for questions about code and data (neil.gilbert@okstate.edu)
 
-## Data/code DOI: *placeholder for code DOI*
-## Publication DOI: *placeholder for paper pub DOI*
+### Data/code DOI: *placeholder for code DOI*
+### Publication DOI: *placeholder for paper pub DOI*
 
 ## Abstract
 
