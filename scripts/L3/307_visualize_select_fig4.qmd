@@ -299,8 +299,8 @@ plot_diurn_on <- ggplot(
 
 ggsave(
   plot_diurn_on,
-  filename = here(dir_307_fig4, "307_Fig4a.png"),
-  #filename = here(dir_307_fig4, "307_Fig4a_freey.png"),
+  filename = here(dir_307_fig4, "307_FigS1.png"),
+  #filename = here(dir_307_fig4, "307_FigS1_freey.png"),
   device = "png",
   height = 12,
   width = 16,
@@ -337,8 +337,8 @@ plot_diurn_ev <- ggplot(
 
 ggsave(
   plot_diurn_ev,
-  filename = here(dir_307_fig4, "307_Fig4b.png"),
-  #filename = here(dir_307_fig4, "307_Fig4b_freey.png"),
+  filename = here(dir_307_fig4, "307_FigS2.png"),
+  #filename = here(dir_307_fig4, "307_FigS2_freey.png"),
   device = "png",
   height = 12,
   width = 16,
@@ -374,7 +374,7 @@ plot_noc_sp <- ggplot(
 
 ggsave(
   plot_noc_sp,
-  filename = here(dir_307_fig4, "307_Fig4c.png"),
+  filename = here(dir_307_fig4, "307_FigS3.png"),
   device = "png",
   height = 12,
   width = 16,
