@@ -110,7 +110,6 @@ save(
 ```{r}
 #| label: viirs-data
 # Read in VIIRS data - pick one to read in
-viirs_path <- "D:\\data\\101_stations_with_VIIRS_2026_03_06.csv"
 viirs_path <- here("data", "L1", "101_stations_with_VIIRS_2026_03_06.csv")
 
 viirs <- read_csv(viirs_path)

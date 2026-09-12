@@ -1,0 +1,32 @@
+> summary(mod_noc_50)
+ Family: binomial  ( logit )
+Formula:          det ~ 1 + (alan_sc + I(alan_sc^2)) * cloud_sc + precip_sc + (1 +  
+    alan_sc + I(alan_sc^2) + cloud_sc + alan_sc:cloud_sc | common_name) +      (1 | sp_grid_wk)
+Data: noc_final_50
+
+      AIC       BIC    logLik -2*log(L)  df.resid 
+ 633297.6  633559.9 -316625.8  633251.6    663421 
+
+Random effects:
+
+Conditional model:
+ Groups      Name             Variance  Std.Dev. Corr                    
+ common_name (Intercept)      0.3940528 0.62774                          
+             alan_sc          0.0812655 0.28507   0.28                   
+             I(alan_sc^2)     0.0420036 0.20495  -0.46 -0.51             
+             cloud_sc         0.0049086 0.07006  -0.37 -0.27  0.05       
+             alan_sc:cloud_sc 0.0002637 0.01624  -0.18  0.11 -0.10  0.30 
+ sp_grid_wk  (Intercept)      0.6543254 0.80890                          
+Number of obs: 663444, groups:  common_name, 24; sp_grid_wk, 21233
+
+Conditional model:
+                       Estimate Std. Error z value Pr(>|z|)    
+(Intercept)           -2.156747   0.129821  -16.61  < 2e-16 ***
+alan_sc               -0.184729   0.059284   -3.12  0.00183 ** 
+I(alan_sc^2)           0.051043   0.043022    1.19  0.23544    
+cloud_sc              -0.049038   0.017460   -2.81  0.00498 ** 
+precip_sc             -0.167969   0.004953  -33.91  < 2e-16 ***
+alan_sc:cloud_sc       0.033834   0.007339    4.61 4.02e-06 ***
+I(alan_sc^2):cloud_sc -0.006188   0.003417   -1.81  0.07015 .  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1

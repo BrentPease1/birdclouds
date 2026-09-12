@@ -1,0 +1,32 @@
+> summary(mod_on_50)
+ Family: gaussian  ( identity )
+Formula:          first_onset ~ 1 + cld_sc + alan_sc + precip_sc + cld_sc:alan_sc +  
+    (1 + cld_sc + alan_sc | family) + (1 | sp_grid_wk)
+Data: diurn_on_50
+
+      AIC       BIC    logLik -2*log(L)  df.resid 
+  3023794   3023943  -1511884   3023768    687893 
+
+Random effects:
+
+Conditional model:
+ Groups     Name        Variance Std.Dev. Corr        
+ family     (Intercept) 0.893489 0.94525              
+            cld_sc      0.002677 0.05174   0.32       
+            alan_sc     0.007206 0.08489  -0.04 -0.06 
+ sp_grid_wk (Intercept) 0.827586 0.90972              
+ Residual               4.249951 2.06154              
+Number of obs: 687906, groups:  family, 63; sp_grid_wk, 165531
+
+Dispersion estimate for gaussian family (sigma^2): 4.25 
+
+Conditional model:
+                Estimate Std. Error z value Pr(>|z|)    
+(Intercept)     1.715430   0.120064  14.288  < 2e-16 ***
+cld_sc          0.027772   0.008439   3.291 0.000998 ***
+alan_sc        -0.063390   0.012690  -4.995 5.87e-07 ***
+precip_sc       0.068953   0.002716  25.386  < 2e-16 ***
+cld_sc:alan_sc -0.008491   0.002639  -3.218 0.001292 ** 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+>
