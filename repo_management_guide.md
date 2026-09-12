@@ -1,8 +1,5 @@
 # GitHub Repo Management Guide
 
-If you are part of teams for data prep/pull, analyses 1 or 2, figures 1-4, or you need to work with the project repo, please read below.
-
-
 ### **File naming convention**:
 
 **snake_case**: All files in the GitHub repo should follow the *snake_case* convention:
@@ -56,9 +53,6 @@ birdclouds/
 |-- results/.../
 ```
 
-> The data prep/pull team will primarily use L0 and L1 subdirectories.
-> The analysis teams will primarily use L1 and L2 subdirectories.
-> The figure teams should use the `results` subdirectory for figures that do not rely on scripts.
 > Note that additional Levels can be created if necessary.
 
 ![Thematic standardization of a workflow](misc/thematic-standardization-workflow.png)
