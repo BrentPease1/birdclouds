@@ -1,0 +1,40 @@
+> summary(mod_noc_50_moon)
+ Family: binomial  ( logit )
+Formula:          
+det ~ 1 + (alan_sc + I(alan_sc^2)) * cloud_sc * moon_sc + precip_sc +  
+    (1 + alan_sc + I(alan_sc^2) + cloud_sc + alan_sc:cloud_sc |  
+        common_name) + (1 | sp_grid_wk)
+Data: noc_final_50
+
+      AIC       BIC    logLik -2*log(L)  df.resid 
+ 633278.5  633609.2 -316610.2  633220.5    663415 
+
+Random effects:
+
+Conditional model:
+ Groups      Name             Variance  Std.Dev. Corr                    
+ common_name (Intercept)      0.3934674 0.62727                          
+             alan_sc          0.0813434 0.28521   0.28                   
+             I(alan_sc^2)     0.0419234 0.20475  -0.46 -0.51             
+             cloud_sc         0.0049513 0.07037  -0.37 -0.28  0.05       
+             alan_sc:cloud_sc 0.0002784 0.01669  -0.16  0.11 -0.12  0.31 
+ sp_grid_wk  (Intercept)      0.6537490 0.80855                          
+Number of obs: 663444, groups:  common_name, 24; sp_grid_wk, 21233
+
+Conditional model:
+                                Estimate Std. Error z value Pr(>|z|)    
+(Intercept)                   -2.1560971  0.1297265  -16.62  < 2e-16 ***
+alan_sc                       -0.1844378  0.0593109   -3.11  0.00187 ** 
+I(alan_sc^2)                   0.0509276  0.0429818    1.18  0.23607    
+cloud_sc                      -0.0496749  0.0175178   -2.84  0.00457 ** 
+moon_sc                        0.0261102  0.0056951    4.58 4.55e-06 ***
+precip_sc                     -0.1680261  0.0049534  -33.92  < 2e-16 ***
+alan_sc:cloud_sc               0.0336272  0.0074057    4.54 5.61e-06 ***
+I(alan_sc^2):cloud_sc         -0.0059887  0.0034185   -1.75  0.07980 .  
+alan_sc:moon_sc                0.0083876  0.0037909    2.21  0.02693 *  
+I(alan_sc^2):moon_sc          -0.0105342  0.0033944   -3.10  0.00191 ** 
+cloud_sc:moon_sc               0.0007602  0.0047751    0.16  0.87352    
+alan_sc:cloud_sc:moon_sc      -0.0014010  0.0036015   -0.39  0.69727    
+I(alan_sc^2):cloud_sc:moon_sc -0.0068578  0.0032131   -2.13  0.03282 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1

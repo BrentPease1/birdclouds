@@ -6,7 +6,7 @@
 #  html:
 #    embed-resources: true
 #    cache: false
-# date: 2026-09-12 # last-modified
+# date: 2026-11-14 # last-modified
 # date-format: "yyyy-MM-dd"
 # abstract: This script creates models for nocturnal vocalization probability
 ################################################################################
@@ -69,3 +69,53 @@ saveRDS(mod_noc_50, file = here(dir_305_models, "305j_mod_noc_50.rds"))
 ## look at final model
 mod_noc_50 <- readRDS(here(dir_305_models, "305j_mod_noc_50.rds"))
 summary(mod_noc_50)
+
+
+##### Moonlight
+
+# scale moonlight
+noc_final_50$moon_sc <- scale(noc_final_50$mean_moonlight)
+
+## 5.0 degree with moonlight interaction
+mod_noc_50_moon <- glmmTMB(
+  det ~ 1 +
+    (alan_sc + I(alan_sc^2)) * cloud_sc * moon_sc +
+    precip_sc +
+    (1 +
+      alan_sc +
+      I(alan_sc^2) +
+      cloud_sc +
+      alan_sc:cloud_sc |
+      common_name) +
+    (1 | sp_grid_wk),
+  family = binomial,
+  data = noc_final_50
+)
+
+# save moonlight model
+saveRDS(
+  mod_noc_50_moon,
+  file = here(dir_305_models, "305k_mod_noc_50_moon.rds")
+)
+summary(mod_noc_50_moon)
+
+# ## Including moonlight as a random effect didnt converge
+# mod_noc_50_moon1 <- glmmTMB(
+#   det ~ 1 +
+#     (alan_sc + I(alan_sc^2)) * cloud_sc * moon_sc +
+#     precip_sc +
+#     (1 +
+#       alan_sc +
+#       I(alan_sc^2) +
+#       cloud_sc +
+#       alan_sc:cloud_sc +
+#       alan_sc:cloud_sc:moon_sc |
+#       common_name) +
+#     (1 | sp_grid_wk),
+#   family = binomial,
+#   data = noc_final_50
+# )
+
+# quick check corrrelation
+cont_vars <- noc_final_50[, c("moon_sc", "alan_sc", "cloud_sc", "precip_sc")]
+cor(cont_vars, use = "complete.obs")
