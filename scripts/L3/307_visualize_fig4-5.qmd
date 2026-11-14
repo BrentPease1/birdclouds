@@ -7,7 +7,7 @@ format:
     embed-resources: false
     cache: false
 abstract: This script visualizes Figures 4, 5, and Supp Figs. 1 and 2
-date: 2026-09-12 # last modified
+date: 2026-11-14 # last modified
 date-format: "yyyy-MM-dd"
 ---
 
@@ -59,6 +59,7 @@ noc$alan_sc <- scale(log1p(noc$avg_rad))
 noc$cloud_sc <- scale(noc$nightly_cloud_cover_percent)
 noc$family <- as.factor(noc$family)
 noc$precip_sc <- scale(noc$nightly_precipitation_mm)
+noc$moon_sc <- scale(noc$mean_moonlight)
 
 ## Calculate scaled 0 mm precip:
 precip_0_on <- (0 - attr(diurn_on$precip_sc, "scaled:center")) /
@@ -71,7 +72,8 @@ precip_0_noc <- (0 - attr(noc$precip_sc, "scaled:center")) /
 ## Model objects:
 m_on <- readRDS(here(dir_305_models, "305c_mod_on_50.rds"))
 m_ev <- readRDS(here(dir_305_models, "305d_mod_ev_50.rds"))
-m_noc <- readRDS(here(dir_305_models, "305j_mod_noc_50.rds"))
+#m_noc <- readRDS(here(dir_305_models, "305j_mod_noc_50.rds")) ## no moonlight
+m_noc <- readRDS(here(dir_305_models, "305k_mod_noc_50_moon.rds.rds")) ## MOONLIGHT INTERACTION
 ```
 
 ```{r}
@@ -230,9 +232,15 @@ cloud_vals_noc <- c(
   max(noc$cloud_sc, na.rm = TRUE)
 )
 
+moon_vals_noc <- c(
+  min(noc$moon_sc, na.rm = TRUE),
+  max(noc$moon_sc, na.rm = TRUE)
+)
+
 pred_species <- expand.grid(
   alan_sc = alan_seq_noc,
   cloud_sc = cloud_vals_noc,
+  moon_sc = moon_vals_noc, # add moonlight
   precip_sc = precip_0_noc,
   common_name = unique(noc$common_name),
   sp_grid_wk = unique(noc$sp_grid_wk)[1]
@@ -259,9 +267,10 @@ pred_species$sp_grid_wk <- factor(
 
 ### Save the prediction objects for later because they take a long time to predict
 #saveRDS(pred_noc_raw, file = here(dir_307_fig4, "307c_pred_noc.rds"))
+#saveRDS(pred_noc_raw, file = here(dir_307_fig4, "307d_pred_noc_moon.rds")) # moonlight interaction
 ### Read in the prediction objects
-pred_noc_raw <- readRDS(here(dir_307_fig4, "307c_pred_noc.rds"))
-
+#pred_noc_raw <- readRDS(here(dir_307_fig4, "307c_pred_noc.rds"))
+pred_noc_raw <- readRDS(here(dir_307_fig4, "307d_pred_noc_moon.rds")) # moonlight interaction
 pred_species$fit <- plogis(pred_noc_raw$fit)
 pred_species$lwr <- plogis(pred_noc_raw$fit - 1.96 * pred_noc_raw$se.fit)
 pred_species$upr <- plogis(pred_noc_raw$fit + 1.96 * pred_noc_raw$se.fit)
@@ -269,6 +278,11 @@ pred_species$upr <- plogis(pred_noc_raw$fit + 1.96 * pred_noc_raw$se.fit)
 pred_species <- pred_species |>
   mutate(
     cloud_cat = ifelse(cloud_sc == min(cloud_sc), "No Clouds", "Clouds"),
+    moon_cat = ifelse(
+      moon_sc == min(moon_sc),
+      "Low Moonlight",
+      "High Moonlight"
+    ), # add moonlight
     alan = alan_sc * sd(noc$alan, na.rm = TRUE) + mean(noc$alan, na.rm = TRUE)
   )
 ```
@@ -354,13 +368,23 @@ ggsave(
 
 ```{r}
 #| label: viz-all-noc-spp-var
-plot_noc_sp <- ggplot(
-  pred_species,
-  aes(x = alan, y = fit, color = cloud_cat, fill = cloud_cat)
-) +
+plot_noc_sp <- pred_species |>
+  mutate(
+    moon_cat = factor(
+      moon_cat,
+      levels = c("Low Moonlight", "High Moonlight")
+    )
+  ) |>
+  ggplot(
+    aes(x = alan, y = fit, color = cloud_cat, fill = cloud_cat)
+  ) +
   geom_line(linewidth = 1) +
   geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.2, color = NA) +
-  facet_wrap(~common_name) +
+  facet_nested_wrap(
+    vars(common_name, moon_cat),
+    ncol = 8,
+    axes = "margins"
+  ) +
   scale_color_manual(values = color_palette) +
   scale_fill_manual(values = color_palette) +
   labs(
@@ -378,7 +402,7 @@ plot_noc_sp <- ggplot(
 
 ggsave(
   plot_noc_sp,
-  filename = here(dir_307_fig4, "307_FigS3.png"),
+  filename = here(dir_307_fig4, "307_FigS3_moon.png"),
   device = "png",
   height = 12,
   width = 16,
@@ -495,6 +519,7 @@ alan_high <- quantile(noc$alan_sc, probs = 0.95, na.rm = TRUE)
 # Build grid for predictions (hold cloud_sc at 0 = mean cloud cover)
 grid_noc <- expand.grid(
   alan_sc = c(alan_low, alan_high),
+  moon_sc = 0, # Mean moonlight intensity
   cloud_sc = 0, # Mean cloud cover baseline
   precip_sc = precip_0_noc,
   common_name = unique(noc$common_name),
@@ -1656,7 +1681,11 @@ pred_sub <- pred_species |>
       species_rel_map[as.character(common_name)],
       levels = rel_levels
     ),
-    common_name = factor(common_name, levels = species_ordered)
+    common_name = factor(common_name, levels = species_ordered),
+    moon_cat = factor(
+      moon_cat,
+      levels = c("Low Moonlight", "High Moonlight")
+    )
   )
 
 plot_noc_sp <- ggplot(
@@ -1666,9 +1695,9 @@ plot_noc_sp <- ggplot(
   geom_line(linewidth = 1) +
   geom_ribbon(aes(ymin = lwr, ymax = upr), alpha = 0.2, color = NA) +
   facet_nested_wrap(
-    vars(rel_type, common_name),
-    ncol = 2,
-    axes = "y"
+    vars(rel_type, common_name, moon_cat),
+    ncol = 4,
+    axes = "margins"
   ) +
   scale_color_manual(values = color_palette) +
   scale_fill_manual(values = color_palette) +
@@ -1694,7 +1723,7 @@ print(plot_noc_sp)
 #| label: save-fig5-individually
 # Panel A - Nocturnal Predicted ALAN Probability
 ggsave(
-  filename = here(dir_307_fig4, "307_fig5_panelA.png"),
+  filename = here(dir_307_fig4, "307_fig5_panelA_moon.png"),
   plot = plot_fig5_panel_a,
   device = "png",
   height = 9,
@@ -1705,7 +1734,7 @@ ggsave(
 
 # Save panel B
 ggsave(
-  filename = here(dir_307_fig4, "307_fig5_panelB.png"),
+  filename = here(dir_307_fig4, "307_fig5_panelB_moon.png"),
   plot = plot_noc_sp,
   device = "png",
   height = 9,
@@ -1717,11 +1746,11 @@ ggsave(
 
 ```{r}
 #| label: save-fig5-combined
-final_fig5 <- plot_fig5_panel_a + plot_noc_sp
+final_fig5 <- plot_fig5_panel_a + plot_noc_sp + plot_layout(widths = c(1, 1.4))
 
 # Save combined fig5
 ggsave(
-  filename = here(dir_307_fig4, "307_fig5.png"),
+  filename = here(dir_307_fig4, "307_fig5_moon.png"),
   plot = final_fig5,
   device = "png",
   height = 10,
@@ -1789,7 +1818,7 @@ coef_panel_a_on_wide |>
 "Most nocturnal species `(75%)` showed lower vocalization probability in bright compared to dark landscapes"
 ```{r}
 #| label: calc-lower-dets
-coef_panel_b_wide |>
+coef_panel_a_wide |>
   group_by(common_name) |>
   mutate(
     lower_det_bright = case_when(
@@ -1800,4 +1829,89 @@ coef_panel_b_wide |>
   ungroup() |>
   count(lower_det_bright) |>
   mutate(percentage = (n / sum(n)) * 100) ## 75%, 25%
+```
+
+Raw ALAN values
+
+"What is the range of light intensity (nW/cm2/sr) for the dark and bright landscapes? How were the sites between the 5th and 95th percentiles of light pollution defined?"
+
+See range of raw light intensities corresponding to the dark and bright landscapes (95th percentiles, respectively). We chose to represent dark and bright landscapes using these percentiles because they provide a meaningful representation of environments across the spatial gradient of our data. Relying on absolute minimums and maximums would force predictions into extreme lighting environments, whereas our data exhibits a strong right-skew toward lower-intensity environments, such as suburban areas, where human-wildlife interactions and light pollution effects are most pronounced.
+
+For diurnal onset:
+
+* 5th percentile: 0.49 nW/cm2/sr
+* 95th percentile: 35.91 nW/cm2/sr
+* Median: 4.75
+* Mean: 10.02
+* Max: 392.00
+
+For diurnal cessation:
+
+* 5th percentile: 0.47 nW/cm2/sr
+* 95th percentile: 35.18 nW/cm2/sr
+* Median: 4.33
+* Mean: 9.58
+* Max: 295.00
+
+For nocturnal species:
+
+* 5th percentile: 0.44 nW/cm2/sr
+* 95th percentile: 39.44 nW/cm2/sr
+* Median: 4.10
+* Mean: 10.06
+* Max: 221.24
+
+```{r}
+#| label: calc-percentiles
+## Raw values of dark/bright landscapes for DIURNAL species (onset)
+# Calculate ALAN quantiles (5th, 95th)
+p05_val <- quantile(diurn_on$alan_sc, 0.05, na.rm = TRUE)
+p95_val <- quantile(diurn_on$alan_sc, 0.95, na.rm = TRUE)
+
+don_raw_alan_low <- expm1(
+  p05_val *
+    sd(log1p(diurn_on$avg_rad), na.rm = TRUE) +
+    mean(log1p(diurn_on$avg_rad), na.rm = TRUE)
+) # 0.49 nW/cm2/sr
+don_raw_alan_high <- expm1(
+  p95_val *
+    sd(log1p(diurn_on$avg_rad), na.rm = TRUE) +
+    mean(log1p(diurn_on$avg_rad), na.rm = TRUE)
+) # 35.91 nW/cm2/sr
+
+summary(diurn_on$avg_rad)
+
+## Raw values of dark/bright landscapes for DIURNAL species (cessation)
+quantile(diurn_ev$avg_rad, probs = 0.05, na.rm = TRUE)
+quantile(diurn_ev$avg_rad, probs = 0.95, na.rm = TRUE)
+summary(diurn_ev$avg_rad)
+
+
+## Raw values of dark/bright landscapes for NOCTURNAL species
+# Define Dark (5th percentile) and Bright (95th percentile) ALAN values
+alan_low <- quantile(noc$alan_sc, probs = 0.05, na.rm = TRUE)
+alan_high <- quantile(noc$alan_sc, probs = 0.95, na.rm = TRUE)
+
+noc_raw_alan_low <- expm1(
+  alan_low *
+    sd(log1p(noc$avg_rad), na.rm = TRUE) +
+    mean(log1p(noc$avg_rad), na.rm = TRUE)
+) # 0.44 nW/cm2/sr
+noc_raw_alan_high <- expm1(
+  alan_high *
+    sd(log1p(noc$avg_rad), na.rm = TRUE) +
+    mean(log1p(noc$avg_rad), na.rm = TRUE)
+) # 39.44 nW/cm2/sr
+
+# Alternatively just do:
+quantile(noc$avg_rad, probs = 0.05, na.rm = TRUE)
+quantile(noc$avg_rad, probs = 0.95, na.rm = TRUE)
+summary(noc$avg_rad)
+
+# this also works for quantile conversion
+# alan_raw <- noc |> mutate(
+# alan = alan_sc * sd(log1p(noc$avg_rad), na.rm = TRUE) + mean(log1p(noc$avg_rad), na.rm = TRUE))
+
+# quantile(alan_raw$alan, probs = 0.05, na.rm = TRUE)
+# quantile(alan_raw$alan, probs = 0.95, na.rm = TRUE)
 ```
