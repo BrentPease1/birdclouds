@@ -79,9 +79,6 @@ The following intemediate data from the [`data/L2`](data/L2) directory was not i
 
 #### [`data/L3`](data/L3)
 
-* [`placeholder`](placeholder)
-  * [`placeholder`](placeholder)
-
 * [`304_final_data/...`](data\L3\304_final_data) Directory of final diurnal and nocturnal datasets for modelling.
   * **Final selected datasets**
     * [`304d_diurn_on_final_50.rds`](data\L3\304_final_data\304d_diurn_on_final_50.rds) Final diurnal onset dataset with 5.0 degree grid cells
@@ -97,17 +94,21 @@ The following intemediate data from the [`data/L2`](data/L2) directory was not i
   * **Final selected models**
     * [`305c_mod_on_50.rds`](data/L3/305_models/305c_mod_on_50.rds) Model object for diurnal onset model with 5.0 degree grid cells
     * [`305d_mod_ev_50.rds`](data/L3/305_models/305d_mod_ev_50.rds) Model object for diurnal cessation model with 5.0 degree grid cells
-    * [`305j_mod_noc_50.rds`](data/L3/305_models/305j_mod_noc_50.rds) Model object for nocturnal probability model with 5.0 degree grid cells
+    * [`305k_mod_noc_50_moon.rds`](data/L3/305_models/305k_mod_noc_50_moon.rds) Model object for nocturnal probability model with 5.0 degree grid cells *AND moonlight intensity interaction*
     * [`305c_mod_on_50_RESULTS.txt`](data/L3/305_models/305c_mod_on_50_RESULTS.txt) Raw model output for diurnal onset model with 5.0 degree grid cells
     * [`305d_mod_ev_50_RESULTS.txt`](data/L3/305_models/305d_mod_ev_50_RESULTS.txt) Raw model output for diurnal cessation model with 5.0 degree grid cells
-    * [`305j_mod_noc_50_RESULTS.txt`](data/L3/305_models/305j_mod_noc_50_RESULTS.txt) Raw model output for nocturnal probability model with 5.0 degree grid cells
+    * [`305k_mod_noc_50_moon_RESULTS.txt`](data/L3/305_models/305k_mod_noc_50_moon_RESULTS.txt) Raw model output for nocturnal probability model with 5.0 degree grid cells *AND moonlight intensity interaction*
   * **Other models**
     * *Not included due to file size limits*
+    * [`305j_mod_noc_50.rds`](data/L3/305_models/305j_mod_noc_50.rds) Model object for nocturnal probability model with 5.0 degree grid cells
+    * [`305j_mod_noc_50_RESULTS.txt`](data/L3/305_models/305j_mod_noc_50_RESULTS.txt) Raw model output for nocturnal probability model with 5.0 degree grid cells
 * [`306_fig3/...`](data/L3/306_fig3) Directory containing data and Figure 3
   * [`306a_pred_on.rds`](data\L3\306_fig3\306a_pred_on.rds) Predicted values for the diurnal onset response variable to support figure 3 visualizations
   * [`306b_pred_ev.rds`](data\L3\306_fig3\306b_pred_ev.rds) Predicted values for the diurnal cessation response variable to support figure 3 visualizations
   * [`306c_pred_noc.rds`](data\L3\306_fig3\306c_pred_noc.rds) Predicted values for the nocturnal probability response variable to support figure 3 visualizations
+  * [`306d_pred_noc_moon.rds`](data\L3\306_fig3\306d_pred_noc_moon.rds) Predicted values for the nocturnal probability response variable to support figure 3 visualizations *WITH moonlight intensity interaction*
   * [`306d_Fig3_v2.png`](data\L3\306_fig3\306d_Fig3_v2.png) Figure 3
+  * [`306d_Fig3_v2_moon.png`](data\L3\306_fig3\306d_Fig3_v2.png) Figure 3 *WITH moonlight intensity interaction*
 * [`307_fig4/...`](data/L3/307_fig4) Directory containing data and Figures 4, 5, and S1-3
   * [`307_fig4_panelA.png`](data\L3\307_fig4\307_fig4_panelA.png) Figure 4 Panel A
   * [`307_fig4_panelB.png`](data\L3\307_fig4\307_fig4_panelB.png) Figure 4 Panel B
@@ -115,12 +116,33 @@ The following intemediate data from the [`data/L2`](data/L2) directory was not i
   * [`307_fig5_panelA.png`](data\L3\307_fig4\307_fig5_panelA.png) Figure 5 Panel A
   * [`307_fig5_panelB.png`](data\L3\307_fig4\307_fig5_panelB.png) Figure 5 Panel B
   * [`307_fig5.png`](data\L3\307_fig4\307_fig5.png) Figure 5 Combined Panels A + B
+  * [`307_fig5_panelA_moon.png`](data\L3\307_fig4\307_fig5_panelA_moon.png) Figure 5 Panel A *WITH moonlight intensity interaction*
+  * [`307_fig5_panelB_moon.png`](data\L3\307_fig4\307_fig5_panelB_moon.png) Figure 5 Panel B *WITH moonlight intensity interaction*
+  * [`307_fig5_moon.png`](data\L3\307_fig4\307_fig5_moon.png) Figure 5 Combined Panels A + B *WITH moonlight intensity interaction*
   * [`307_FigS1.png`](data\L3\307_fig4\307_FigS1.png) Figure S1
   * [`307_FigS2.png`](data\L3\307_fig4\307_FigS2.png) Figure S2
   * [`307_FigS3.png`](data\L3\307_fig4\307_FigS3.png) Figure S3
+  * [`307_FigS3_moon.png`](data\L3\307_fig4\307_FigS3_moon.png) Figure S3 *WITH moonlight intensity interaction*
   * [`307a_pred_diurn_on.rds`](data/L3/307_fig4/307a_pred_diurn_on.rds) Predicted values for the diurnal onset response variable to support figure visualizations
   * [`307b_pred_diurn_ev.rds`](data/L3/307_fig4/307b_pred_diurn_ev.rds) Predicted values for the diurnal cessation response variable to support figure visualizations
   * [`307c_pred_noc.rds`](data/L3/307_fig4/307c_pred_noc.rds) Predicted values for the nocturnal probability response variable to support figure visualizations
+  * [`307c_pred_noc_moon.rds`](data/L3/307_fig4/307c_pred_noc_moon.rds) Predicted values for the nocturnal probability response variable to support figure visualizations *WITH moonlight intensity interaction*
+* [`309_precip_analysis/...`](data/L3/309_precip_analysis/) Directory containing data, models, and Tables S3-S5
+  * [`309_cess_cloud_hist.png`](data/L3/309_precip_analysis/309_cess_cloud_hist.png) Raw cloud cover histogram for cessation data
+  * [`309_cess_table.docx`](data/L3/309_precip_analysis/309_cess_table.docx) Table S4 Model coefficients for the evening cessation of diurnal species vocalizations across models examining precipitation confounding effect
+  * [`309_noc_cloud_hist.png`](data/L3/309_precip_analysis/309_noc_cloud_hist.png) Raw cloud cover histogram for nocturnal data
+  * [`309_noc_table.docx`](data/L3/309_precip_analysis/309_noc_table.docx) Table S5 Model coefficients for the probability of nocturnal species vocalizations across models examining precipitation confounding effect
+  * [`309_onset_cloud_hist.png`](data/L3/309_precip_analysis/309_onset_cloud_hist.png) Raw cloud cover histogram for onset data
+  * [`309_onset_table.png`](data/L3/309_precip_analysis/309_onset_table.png) Table S3 Model coefficients for the morning onset of diurnal species vocalizations across models examining precipitation confounding effect
+  * [`309a_mod_on_50_precip_all.rds`](data/L3/309_precip_analysis/309a_mod_on_50_precip_all.rds) Model object for diurnal onset model with 5.0 degree grid cells, all data, and additive precipitation covariate
+  * [`309b_mod_on_50_noprecip_all.rds`](data/L3/309_precip_analysis/309b_mod_on_50_noprecip_all.rds) Model object for diurnal onset model with 5.0 degree grid cells, all data, and no precipitation covariate
+  * [`309c_mod_on_50_noprecip_exclude.rds`](data/L3/309_precip_analysis/309c_mod_on_50_noprecip_exclude.rds) Model object for diurnal onset model with 5.0 degree grid cells, data excluding precipitatione events, and no preicpitation covariate
+  * [`309d_mod_ev_50_precip_all.rds`](data/L3/309_precip_analysis/309d_mod_ev_50_precip_all.rds) Model object for diurnal cessation model with 5.0 degree grid cells, all data, and additive precipitation covariate
+  * [`309e_mod_ev_50_noprecip_all.rds`](data/L3/309_precip_analysis/309e_mod_ev_50_noprecip_all.rds) Model object for diurnal cessation model with 5.0 degree grid cells, all data, and no precipitation covariate
+  * [`309f_mod_ev_50_noprecip_exclude.rds`](data/L3/309_precip_analysis/309f_mod_ev_50_noprecip_exclude.rds) Model object for diurnal cessation model with 5.0 degree grid cells, data excluding precipitatione events, and no preicpitation covariate
+  * [`309g_mod_noc_50_precip_all.rds`](data/L3/309_precip_analysis/309g_mod_noc_50_precip_all.rds) Model object for nocturnal probability model with 5.0 degree grid cells, all data, and additive precipitation covariate *WITH moonlight intensity interaction*
+  * [`309h_mod_noc_50_noprecip_all.rds`](data/L3/309_precip_analysis/309h_mod_noc_50_noprecip_all.rds) Model object for nocturnal probability model with 5.0 degree grid cells, all data, and no precipitation covariate *WITH moonlight intensity interaction*
+  * [`309i_mod_noc_50_noprecip_exclude.rds`](data/L3/309_precip_analysis/309i_mod_noc_50_noprecip_exclude.rds) Model object for nocturnal probability model with 5.0 degree grid cells, data excluding precipitatione events, and no preicpitation covariate *WITH moonlight intensity interaction* - *did not converge*
 * [`300_fig2b_world_cloud_cover_map.png`](data\L3\300_fig2b_world_cloud_cover_map.png) Global map of average cloud cover to use as element in Figure 2B
 * [`308_fig2b_vocs.png`](data\L3\308_fig2b_vocs.png) Summary of vocalization data used in this study to use as element in Figure 2B
 
@@ -180,5 +202,6 @@ The following intemediate data from the [`data/L3`](data/L3) directory was not i
 * [`306_visualize_fig3.R`](scripts\L3\306_visualize_fig3.R) This script visualizes Figure 3
 * [`307_visualize_fig4-5.qmd`](scripts\L3\307_visualize_fig4-5.qmd) This script visualizes Figures 4, 5, and Supp Figs. 1 and 2
 * [`308_summary_stats.qmd`](scripts\L3\308_summary_stats.qmd) This script puts together basic summary statistics of the data used for modelling.
+* [`309_SUPP_precipitation.qmd`](scripts/L3/309_SUPP_precipitation.qmd) This script examines different ways to account for precipitation events in our avian vocalization models (Supplementary Results- precipitation confounding analysis).
 
 
