@@ -7,7 +7,7 @@ format:
     embed-resources: false
     cache: false
 abstract: This script visualizes Figures 4, 5, and Supp Figs. 1 and 2
-date: 2026-11-14 # last modified
+date: 2026-11-15 # last modified
 date-format: "yyyy-MM-dd"
 ---
 
@@ -26,7 +26,7 @@ pacman::p_load(
   ggh4x
 )
 
-here::i_am("scripts/L3/307_visualize_select_fig4.qmd")
+here::i_am("scripts/L3/307_visualize_fig4-5.qmd")
 ```
 
 # read data
@@ -73,7 +73,7 @@ precip_0_noc <- (0 - attr(noc$precip_sc, "scaled:center")) /
 m_on <- readRDS(here(dir_305_models, "305c_mod_on_50.rds"))
 m_ev <- readRDS(here(dir_305_models, "305d_mod_ev_50.rds"))
 #m_noc <- readRDS(here(dir_305_models, "305j_mod_noc_50.rds")) ## no moonlight
-m_noc <- readRDS(here(dir_305_models, "305k_mod_noc_50_moon.rds.rds")) ## MOONLIGHT INTERACTION
+m_noc <- readRDS(here(dir_305_models, "305k_mod_noc_50_moon.rds")) ## MOONLIGHT INTERACTION
 ```
 
 ```{r}
@@ -1702,7 +1702,7 @@ plot_noc_sp <- ggplot(
   scale_color_manual(values = color_palette) +
   scale_fill_manual(values = color_palette) +
   labs(
-    title = "B) Selected Nocturnal Species Responses\nto Light Pollution and Cloud Cover",
+    title = "B) Selected Nocturnal Species Responses to\nLight Pollution, Moonlight Intensity, and Cloud Cover",
     x = "Light Pollution: ln(Radiance + 1)",
     y = "Probability of Vocalization",
     color = "Cloud cover",
