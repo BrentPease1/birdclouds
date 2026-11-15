@@ -6,7 +6,7 @@ format:
   html:
     embed-resources: false
     cache: false
-abstract: This script examines different ways to account for precipitation events.
+abstract: This script examines different ways to account for precipitation events in our avian vocalization models (Supplementary Results- precipitation confounding analysis).
 date: 2026-11-15 # last modified
 date-format: "yyyy-MM-dd"
 ---
