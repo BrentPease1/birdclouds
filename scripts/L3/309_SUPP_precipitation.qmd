@@ -1,1 +1,526 @@
-supplementary analyses demonstrating precipitation effects
+---
+title: 309_SUPP_precipitation.qmd
+subtitle: Clouds modulate light-pollution effects on avian behavior
+toc: true
+format:
+  html:
+    embed-resources: false
+    cache: false
+abstract: This script examines different ways to account for precipitation events.
+date: 2026-11-14 # last modified
+date-format: "yyyy-MM-dd"
+---
+
+```{r}
+#| label: setup-env
+pacman::p_load(data.table, tidyverse, here, glmmTMB, fs, modelsummary, pandoc)
+
+here::i_am("scripts/L3/309_SUPP_precipitation.qmd")
+
+# directories
+dir_304_final_data <- here("data", "L3", "304_final_data")
+dir_305_models <- here("data", "L3", "305_models")
+dir_309_precip <- here("data", "L3", "309_precip_analysis")
+fs::dir_create(dir_309_precip)
+```
+
+# Read data
+
+```{r}
+#| label: read-data
+diurn_on_50 <- readRDS(here(dir_304_final_data, "304d_diurn_on_final_50.rds"))
+diurn_ev_50 <- readRDS(here(dir_304_final_data, "304e_diurn_ev_final_50.rds"))
+noc_50 <- readRDS(here(dir_304_final_data, "304f_noc_final_50.rds"))
+```
+
+
+```{r}
+#| label: prep-data
+# Onset diurnal
+diurn_on_50$alan_sc <- scale(log1p(diurn_on_50$avg_rad))
+diurn_on_50$cld_sc <- scale(diurn_on_50$sunrise_cloud_cover_percent)
+diurn_on_50$family <- as.factor(diurn_on_50$family)
+diurn_on_50$precip_sc <- scale(diurn_on_50$sunrise_precipitation_mm)
+
+# Onset cessation
+diurn_ev_50$alan_sc <- scale(log1p(diurn_ev_50$avg_rad))
+diurn_ev_50$cld_sc <- scale(diurn_ev_50$sunset_cloud_cover_percent)
+diurn_ev_50$family <- as.factor(diurn_ev_50$family)
+diurn_ev_50$precip_sc <- scale(diurn_ev_50$sunset_precipitation_mm)
+
+# Nocturnal
+noc_50$alan <- log1p(noc_50$avg_rad)
+noc_50$alan_sc <- scale(noc_50$alan)
+noc_50$cld_sc <- scale(noc_50$nightly_cloud_cover_percent)
+noc_50$precip_sc <- scale(noc_50$nightly_precipitation_mm)
+noc_50$moon_sc <- scale(noc_50$mean_moonlight)
+```
+
+
+
+# Examine Precipitation Data
+
+```{r}
+#| label: FX-prep-precip-data
+Prep_Precip_Data <- function(data, response_col, cloud_col, precip_col) {
+  data |>
+    select(
+      {{ response_col }},
+      avg_rad,
+      cloud = {{ cloud_col }},
+      precip = {{ precip_col }},
+      family,
+      sp_grid_wk
+    ) |>
+    mutate(
+      cloud_category = case_when(
+        cloud == 0 ~ "0%",
+        cloud > 0 & cloud <= 25 ~ "1-25%",
+        cloud > 25 & cloud <= 50 ~ "26-50%",
+        cloud > 50 & cloud <= 75 ~ "51-75%",
+        cloud > 75 & cloud <= 100 ~ "76-100%",
+        .default = NA_character_
+      ),
+      cloud_category = factor(
+        cloud_category,
+        levels = c("0%", "1-25%", "26-50%", "51-75%", "76-100%")
+      )
+    )
+}
+```
+
+```{r}
+#| label: FX-create-hist-cloud
+Create_Cloud_Hist <- function(data, filename) {
+  png(
+    here(dir_309_precip, filename),
+    width = 800,
+    height = 600,
+    res = 120
+  )
+
+  cloud_hist <- hist(data$cloud)
+  dev.off()
+}
+```
+
+```{r}
+#| label: FX-print-table1
+Print_Table1 <- function(data) {
+  table1 <- data |>
+    filter(!is.na(cloud_category)) |>
+    group_by(cloud_category) |>
+    summarise(
+      precip_zero = sum(precip == 0, na.rm = TRUE),
+      precip_gt_zero = sum(precip > 0, na.rm = TRUE),
+      row_total = n(),
+      pct_precip = (precip_gt_zero / row_total) * 100
+    ) |>
+    pivot_longer(
+      cols = -cloud_category,
+      names_to = "Metric",
+      values_to = "value"
+    ) |>
+    pivot_wider(
+      names_from = cloud_category,
+      values_from = value
+    ) |>
+    mutate(
+      `Column total` = rowSums(across(where(is.numeric)), na.rm = TRUE),
+      Metric = case_when(
+        Metric == "precip_zero" ~ "Precip = 0 (n rows)",
+        Metric == "precip_gt_zero" ~ "Precip > 0 (n rows)",
+        Metric == "row_total" ~ "Row total (sum b and c)",
+        Metric == "pct_precip" ~ "% of row with precip ((c / b) * 100)"
+      )
+    )
+  print(table1)
+}
+```
+
+```{r}
+#| label: FX-print-table2
+Print_Table2 <- function(data) {
+  table2 <- data |>
+    summarise(
+      `Cloud > 0 & Precip = 0` = sum(cloud > 0 & precip == 0, na.rm = TRUE),
+      `Cloud > 0 & Precip > 0` = sum(cloud > 0 & precip > 0, na.rm = TRUE),
+      `(Cloud = 0 & Precip > 0 — sanity check, should be near 0)` = sum(
+        cloud == 0 & precip > 0,
+        na.rm = TRUE
+      )
+    ) |>
+    pivot_longer(
+      cols = everything(),
+      names_to = "Category",
+      values_to = "n"
+    ) |>
+    mutate(
+      `%` = (n / sum(n)) * 100
+    )
+
+  print(table2)
+}
+```
+
+```{r}
+#| label: prep-precip-data
+# Onset data
+onset_precip <- Prep_Precip_Data(
+  diurn_on_50,
+  first_onset,
+  sunrise_cloud_cover_percent,
+  sunrise_precipitation_mm
+)
+
+# Cessation data
+cess_precip <- Prep_Precip_Data(
+  diurn_ev_50,
+  ev_ces,
+  sunset_cloud_cover_percent,
+  sunset_precipitation_mm
+)
+
+# Nocturnal data
+noc_precip <- Prep_Precip_Data(
+  noc_50,
+  det,
+  nightly_cloud_cover_percent,
+  nightly_precipitation_mm
+)
+```
+
+```{r}
+#| label: create-cloud-hist
+Create_Cloud_Hist(onset_precip, "309_onset_cloud_hist.png")
+Create_Cloud_Hist(cess_precip, "309_cess_cloud_hist.png")
+Create_Cloud_Hist(noc_precip, "309_noc_cloud_hist.png")
+```
+
+```{r}
+#| label: print-table1
+# Rows with precipitation
+Print_Table1(onset_precip)
+Print_Table1(cess_precip)
+Print_Table1(noc_precip)
+```
+
+```{r}
+#| label: print-table2
+# Rows with precipitation & clouds
+Print_Table2(onset_precip)
+Print_Table2(cess_precip)
+Print_Table2(noc_precip)
+```
+
+# Model precipitation data
+
+## Diurnal onset
+
+```{r}
+#| label: onset-precip-all
+# All data with precipitation fixed effect (current manuscript)
+
+###Already ran this model in original 305 script
+mod_on_50_precip_all <- readRDS(here(dir_305_models, "305c_mod_on_50.rds"))
+
+# Resave anyways for reference
+saveRDS(
+  mod_on_50_precip_all,
+  file = here(dir_309_precip, "309a_mod_on_50_precip_all.rds")
+)
+```
+
+```{r}
+#| label: onset-noprecip-all
+# All data with no precipitation fixed effect
+#Pull out only columns needed for analysis (frees up R memory):
+onset_50_noprecip_all <- diurn_on_50 |>
+  dplyr::select(first_onset, cld_sc, alan_sc, family, sp_grid_wk)
+
+#Run the model:
+mod_on_50_noprecip_all <- glmmTMB::glmmTMB(
+  first_onset ~ 1 +
+    cld_sc +
+    alan_sc +
+    cld_sc:alan_sc +
+    (1 + cld_sc + alan_sc | family) +
+    (1 | sp_grid_wk),
+  data = onset_50_noprecip_all
+)
+
+#Save model object:
+saveRDS(
+  mod_on_50_noprecip_all,
+  file = here(dir_309_precip, "309b_mod_on_50_noprecip_all.rds")
+)
+```
+
+```{r}
+#| label: onset-noprecip-exclude
+# Data excluding precipitation events with no precipitation fixed effect
+#Pull out only columns needed for analysis (frees up R memory):
+onset_50_noprecip_exclude <- diurn_on_50 |>
+  filter(sunrise_precipitation_mm == 0) |>
+  dplyr::select(first_onset, cld_sc, alan_sc, family, sp_grid_wk)
+
+#Run the model:
+mod_on_50_noprecip_exclude <- glmmTMB::glmmTMB(
+  first_onset ~ 1 +
+    cld_sc +
+    alan_sc +
+    cld_sc:alan_sc +
+    (1 + cld_sc + alan_sc | family) +
+    (1 | sp_grid_wk),
+  data = onset_50_noprecip_exclude
+)
+
+#Save model object:
+saveRDS(
+  mod_on_50_noprecip_exclude,
+  file = here(dir_309_precip, "309c_mod_on_50_noprecip_exclude.rds")
+)
+```
+
+```{r}
+#| label: clean-up-onset
+rm(mod_on_50_precip_all, onset_50_noprecip_all, mod_on_50_noprecip_all)
+rm(mod_on_50_noprecip_exclude, onset_50_noprecip_exclude)
+```
+
+## Diurnal cessation
+
+```{r}
+#| label: cess-precip-all
+# All data with precipitation fixed effect (current manuscript)
+
+###Already ran this model in original 305 script
+mod_ev_50_precip_all <- readRDS(here(dir_305_models, "305d_mod_ev_50.rds"))
+
+# Resave anyways for reference
+saveRDS(
+  mod_ev_50_precip_all,
+  file = here(dir_309_precip, "309d_mod_ev_50_precip_all.rds")
+)
+```
+
+```{r}
+#| label: cess-no-precip-all
+# All data with no precipitation fixed effect
+#Pull out only columns needed for analysis (frees up R memory):
+cess_50_noprecip_all <- diurn_ev_50 |>
+  dplyr::select(ev_ces, cld_sc, alan_sc, family, sp_grid_wk)
+
+#Run the model:
+mod_ev_50_noprecip_all <- glmmTMB::glmmTMB(
+  ev_ces ~ 1 +
+    cld_sc +
+    alan_sc +
+    cld_sc:alan_sc +
+    (1 + cld_sc + alan_sc | family) +
+    (1 | sp_grid_wk),
+  data = cess_50_noprecip_all
+)
+
+#Save model object:
+saveRDS(
+  mod_ev_50_noprecip_all,
+  file = here(dir_309_precip, "309e_mod_ev_50_noprecip_all.rds")
+)
+```
+
+```{r}
+#| label: cess-noprecip-exclude
+# Data excluding precipitation events with no precipitation fixed effect
+#Pull out only columns needed for analysis (frees up R memory):
+cess_50_noprecip_exclude <- diurn_ev_50 |>
+  filter(sunset_precipitation_mm == 0) |>
+  dplyr::select(ev_ces, cld_sc, alan_sc, family, sp_grid_wk)
+
+#Run the model:
+mod_ev_50_noprecip_exclude <- glmmTMB::glmmTMB(
+  ev_ces ~ 1 +
+    cld_sc +
+    alan_sc +
+    cld_sc:alan_sc +
+    (1 + cld_sc + alan_sc | family) +
+    (1 | sp_grid_wk),
+  data = cess_50_noprecip_exclude
+)
+
+#Save model object:
+saveRDS(
+  mod_ev_50_noprecip_exclude,
+  file = here(dir_309_precip, "309f_mod_ev_50_noprecip_exclude.rds")
+)
+```
+
+```{r}
+#| label: clean-up-cess
+rm(mod_ev_50_precip_all, cess_50_noprecip_all, mod_ev_50_noprecip_all)
+rm(mod_ev_50_noprecip_exclude, cess_50_noprecip_exclude)
+```
+
+## Nocturnal
+
+```{r}
+#| label: noc-precip-all
+# All data with precipitation fixed effect (current manuscript)
+
+###Already ran this model in original 305 script
+mod_noc_50_precip_all <- readRDS(here(
+  dir_305_models,
+  "305k_mod_noc_50_moon.rds"
+))
+
+## Includes 3-way moonlight interaction
+
+# Resave anyways for reference
+saveRDS(
+  mod_noc_50_precip_all,
+  file = here(dir_309_precip, "309g_mod_noc_50_precip_all.rds")
+)
+```
+
+```{r}
+#| label: noc-noprecip-all
+# All data with no precipitation fixed effect
+#Pull out only columns needed for analysis (frees up R memory):
+noc_50_noprecip_all <- noc_50 |>
+  dplyr::select(det, cld_sc, alan_sc, moon_sc, common_name, sp_grid_wk)
+
+#Run model
+mod_noc_50_noprecip_all <- glmmTMB::glmmTMB(
+  det ~ 1 +
+    (alan_sc + I(alan_sc^2)) * cld_sc * moon_sc + ### Includes moonlight interaction
+    (1 +
+      alan_sc +
+      I(alan_sc^2) +
+      cld_sc +
+      alan_sc:cld_sc |
+      common_name) +
+    (1 | sp_grid_wk),
+  family = binomial,
+  data = noc_50_noprecip_all
+)
+
+#Save model object:
+saveRDS(
+  mod_noc_50_noprecip_all,
+  file = here(dir_309_precip, "309h_mod_noc_50_noprecip_all.rds")
+)
+```
+
+```{r}
+#| label: noc-noprecip-exclude
+# Data excluding precipitation events with no precipitation fixed effect
+#Pull out only columns needed for analysis (frees up R memory):
+# noc_50_noprecip_exclude <- noc_50 |>
+#   filter(nightly_precipitation_mm == 0) |>
+#   dplyr::select(det, cld_sc, alan_sc, moon_sc, common_name, sp_grid_wk)
+
+# #Run the model:
+# ### Model did not converge - also tried excluding the moonlight interaction - still didnt converge
+# mod_noc_50_noprecip_exclude <- glmmTMB::glmmTMB(
+#   det ~ 1 +
+#     (alan_sc + I(alan_sc^2)) * cld_sc * moon_sc + ### includes moonlight interaction
+#     (1 +
+#       alan_sc +
+#       I(alan_sc^2) +
+#       cld_sc +
+#       alan_sc:cld_sc |
+#       common_name) +
+#     (1 | sp_grid_wk),
+#   data = noc_50_noprecip_exclude
+# )
+
+# #Save model object:
+# saveRDS(
+#   mod_noc_50_noprecip_exclude,
+#   file = here(dir_309_precip, "309i_mod_noc_50_noprecip_exclude.rds")
+# )
+```
+
+```{r}
+#| label: clean-up-noc
+rm(mod_noc_50_precip_all, noc_50_noprecip_all, mod_noc_50_noprecip_all)
+rm(noc_50_noprecip_exclude, mod_noc_50_noprecip_exclude)
+```
+
+
+# Examine precipitation models
+
+
+```{r}
+#| label: set-table-formatting
+word_table_args <- list(
+  output = "word", #"markdown"
+  estimate = "{estimate}{stars} ± {std.error}", #"{estimate} ({std.error})",
+  statistic = NULL,
+  stars = c('*' = 0.05, '**' = 0.01, '***' = 0.001),
+  gof_omit = "ICC|BIC|LogLik|F|RMSE|R2|Cor|SD", # Focus on coefficients
+  coef_rename = c(
+    "alan_sc" = "Light Pollution (scaled)",
+    "cld_sc" = "Cloud Cover (scaled)",
+    "precip_sc" = "Precipitation (scaled)",
+    "moon_sc" = "Moonlight Intensity (scaled)"
+  )
+)
+```
+
+```{r}
+#| label: read-precip-models
+# Map names to model filenames
+file_map <- c(
+  "Full Data (+ Precip)" = "309a_mod_on_50_precip_all.rds",
+  "Full Data (Unadjusted)" = "309b_mod_on_50_noprecip_all.rds",
+  "Subset Data (Excl. Precip)" = "309c_mod_on_50_noprecip_exclude.rds",
+  "Full Data (+ Precip)" = "309d_mod_ev_50_precip_all.rds",
+  "Full Data (Unadjusted)" = "309e_mod_ev_50_noprecip_all.rds",
+  "Subset Data (Excl. Precip)" = "309f_mod_ev_50_noprecip_exclude.rds",
+  "Full Data (+ Precip)" = "309g_mod_noc_50_precip_all.rds",
+  "Full Data (Unadjusted)" = "309h_mod_noc_50_noprecip_all.rds" #,
+  #"Subset Data (Excl. Precip)" = "309i_mod_noc_50_noprecip_exclude.rds"
+)
+
+# Read in all model files
+all_models <- map(file_map, ~ readRDS(here(dir_309_precip, .x)))
+
+# Group models by response variable
+onset_list <- all_models[1:3]
+cessation_list <- all_models[4:6]
+nocturnal_list <- all_models[7:8] #9]
+```
+
+```{r}
+#| label: compile-model-summaries
+#Diurnal onset models
+#do.call(modelsummary, c(list(onset_list), table_args))
+do.call(
+  modelsummary,
+  c(
+    list(onset_list, output = here(dir_309_precip, "309_onset_table.docx")),
+    word_table_args[-1]
+  )
+)
+
+#Diurnal cessation models
+#do.call(modelsummary, c(list(cessation_list), table_args))
+do.call(
+  modelsummary,
+  c(
+    list(cessation_list, output = here(dir_309_precip, "309_cess_table.docx")),
+    word_table_args[-1]
+  )
+)
+
+#Nocturnal models
+#do.call(modelsummary, c(list(nocturnal_list), table_args))
+do.call(
+  modelsummary,
+  c(
+    list(nocturnal_list, output = here(dir_309_precip, "309_noc_table.docx")),
+    word_table_args[-1]
+  )
+)
+```

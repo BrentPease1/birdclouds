@@ -81,6 +81,8 @@ data/L3/305_models/305i_mod_noc_05.rds
 data/L3/305_models_no_precip/model_summary_20det.txt
 data/L3/305_models_no_precip/model_summary_100det.txt
 data/L3/305_models/305k_mod_noc_50_moon.rds
+data/L3/309_precip_analysis/309g_mod_noc_50_precip_all.rds
+data/L3/309_precip_analysis/309h_mod_noc_50_noprecip_all.rds
 
 data/L3/307_fig4/legacy
 
