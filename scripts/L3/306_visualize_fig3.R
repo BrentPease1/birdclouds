@@ -37,7 +37,9 @@ noc <- readRDS(here(dir_304_final_data, "304f_noc_final_50.rds"))
 ## Model objects:
 m_on <- readRDS(here(dir_305_models, "305c_mod_on_50.rds"))
 m_ev <- readRDS(here(dir_305_models, "305d_mod_ev_50.rds"))
-m_noc <- readRDS(here(dir_305_models, "305j_mod_noc_50.rds"))
+#m_noc <- readRDS(here(dir_305_models, "305j_mod_noc_50.rds"))
+m_noc <- readRDS(here(dir_305_models, "305k_mod_noc_50_moon.rds")) ## MOONLIGHT INTERACTION
+
 
 color_palette <- c(
   "Clouds" = "#8997af",
@@ -61,7 +63,7 @@ noc$alan_sc <- scale(log1p(noc$avg_rad))
 noc$cld_sc <- scale(noc$nightly_cloud_cover_percent)
 noc$family <- as.factor(noc$family)
 noc$precip_sc <- scale(noc$nightly_precipitation_mm)
-
+noc$moon_sc <- scale(noc$mean_moonlight)
 
 ## Create scaled variables from dataframes, maintaining attributes:
 alan.sca.on <- scale(log1p(diurn_on$avg_rad))
@@ -75,7 +77,7 @@ precip.sca.ev <- scale(diurn_ev$sunset_precipitation_mm)
 alan.sca.noc <- scale(log1p(noc$avg_rad))
 cld.sca.noc <- scale(noc$nightly_cloud_cover_percent)
 precip.sca.noc <- scale(noc$nightly_precipitation_mm)
-
+moon.sca.noc <- scale(noc$mean_moonlight)
 
 ## Calculate the scaled value representing 0 mm of precipitation:
 precip_0_on <- (0 - attr(precip.sca.on, "scaled:center")) /
@@ -116,6 +118,7 @@ data_noc <- tidyr::expand_grid(
     length.out = 200
   ),
   cloud_sc = c(min(noc$cld_sc, na.rm = TRUE), max(noc$cld_sc, na.rm = TRUE)),
+  moon_sc = c(min(noc$moon_sc, na.rm = TRUE), max(noc$moon_sc, na.rm = TRUE)),
   precip_sc = precip_0_noc
 )
 
@@ -144,11 +147,13 @@ pred_noc <- predict(m_noc, data_noc, se.fit = TRUE, type = "link", re.form = NA)
 ### Save the prediction objects for later because they take a long time to predict
 saveRDS(pred_on, file = here(dir_306_fig3, "306a_pred_on.rds"))
 saveRDS(pred_ev, file = here(dir_306_fig3, "306b_pred_ev.rds"))
-saveRDS(pred_noc, file = here(dir_306_fig3, "306c_pred_noc.rds"))
+#saveRDS(pred_noc, file = here(dir_306_fig3, "306c_pred_noc.rds"))
+saveRDS(pred_noc, file = here(dir_306_fig3, "306d_pred_noc_moon.rds"))
 ### Read in the prediction objects
 pred_on <- readRDS(here(dir_306_fig3, "306a_pred_on.rds"))
 pred_ev <- readRDS(here(dir_306_fig3, "306b_pred_ev.rds"))
-pred_noc <- readRDS(here(dir_306_fig3, "306c_pred_noc.rds"))
+#pred_noc <- readRDS(here(dir_306_fig3, "306c_pred_noc.rds"))
+pred_noc <- readRDS(here(dir_306_fig3, "306d_pred_noc_moon.rds"))
 ################
 
 ## Reformat and backtransform data:
@@ -204,10 +209,24 @@ plot_data_noc <-
       attr(cld.sca.noc, "scaled:center"),
     alan = alan_sc *
       attr(alan.sca.noc, "scaled:scale") +
-      attr(alan.sca.noc, "scaled:center")
+      attr(alan.sca.noc, "scaled:center"),
+    moon = moon_sc *
+      attr(moon.sca.noc, "scaled:scale") +
+      attr(moon.sca.noc, "scaled:center")
   ) |>
   #mutate(cld_lab = ifelse(cld > 0, 'cloudy', 'clear')) |> # Removed by Karina
-  mutate(cld_lab = ifelse(cld == min(cld), 'No Clouds', 'Clouds')) |> # Added by Karina
+  mutate(
+    cld_lab = ifelse(cld == min(cld), 'No Clouds', 'Clouds'),
+    moon_lab = ifelse(
+      moon_sc == min(moon_sc),
+      "Low Moonlight",
+      "High Moonlight"
+    ),
+    moon_lab = factor(
+      moon_lab,
+      levels = c("Low Moonlight", "High Moonlight")
+    )
+  ) |> # Added by Karina
   tibble::add_column(period = "nocturnal")
 
 
@@ -352,7 +371,11 @@ plot_ev <-
       vjust = 5,
       margin = margin(t = 15)
     ),
-    axis.title.x = element_text(size = 10, margin = margin(t = 15)),
+    axis.title.x = element_text(
+      size = 10,
+      hjust = -5.75,
+      margin = margin(t = 15)
+    ),
     axis.title.y = element_text(size = 9, margin = margin(r = 5)),
   )
 
@@ -363,6 +386,7 @@ plot_noc <-
     data = plot_data_noc,
     aes(x = alan, y = fit, color = factor(cld_lab))
   ) +
+  facet_wrap(~moon_lab, nrow = 1) +
   geom_ribbon(
     aes(ymin = lwr, ymax = upr, fill = factor(cld_lab)),
     color = NA,
@@ -385,29 +409,32 @@ plot_noc <-
     panel.grid = element_blank(),
     text = element_text(size = 10),
     legend.title = element_blank(),
+    legend.position = "bottom",
     plot.title = element_text(
       size = 10,
       vjust = 5,
       face = "bold",
       margin = margin(t = 15)
     ),
-    axis.title.x = element_blank(),
+    #  axis.title.x = element_blank(),
     axis.title.y = element_text(size = 9, margin = margin(r = 5)),
   )
 
 
 ### Putting them all together:
-Fig3_v1 <- plot_on + plot_ev + plot_noc
+Fig3_v1 <- (plot_on + plot_ev) / plot_noc
 
 ggsave(
   Fig3_v1,
-  filename = here(dir_306_fig3, "306d_Fig3_v2.png"),
+  filename = here(dir_306_fig3, "306d_Fig3_v2_moon.png"),
   device = "png",
-  height = 3,
-  width = 8,
+  height = 6,
+  width = 6,
   units = "in",
   dpi = 600
 )
+
+Fig3_v1
 
 # ## Figure 3 v2 (diurnal plots default scaling):
 
